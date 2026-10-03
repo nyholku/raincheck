@@ -149,6 +149,38 @@ def meta():
 
 
 @_safe
+def catch_up(now):
+    """Archive anything still in working storage that the archive is missing (e.g. after a
+    failed run), for days that have not been packed yet."""
+    import wind
+    open_day = lambda t: now < t.replace(hour=0, minute=0, second=0) + dt.timedelta(days=1) + PACK_DELAY
+    has = lambda t, sub, name: (PENDING / t.strftime("%Y%m%d") / sub / name).exists()
+    for origin in rc.stored_runs():
+        if open_day(origin) and not has(origin, "rain", f"meps_{tag(origin)}.npz.xz"):
+            z = np.load(rc.fc_path(origin))
+            mm = z["rr"].astype(np.float32) * rc.RADAR_SCALE
+            mm[z["rr"] == rc.RADAR_NODATA] = np.nan
+            rain_run(origin, z["valid"], mm)
+    for source in wind.SOURCES:
+        for origin in wind.stored(source):
+            if open_day(origin) and not has(origin, "wind", f"{source}_{tag(origin)}.npz.xz"):
+                wind_run(source, origin, wind.fc_file(source, origin))
+    for p in sorted((rc.SITE / "h").glob("*")):
+        t = rc.from_tag(p.name)
+        if open_day(t) and not has(t, "rain", f"obs_{p.name}.npz.xz"):
+            try:
+                rain_obs(t, rc.fetch_obs(t))
+            except Exception as e:
+                log(f"archive: radar {p.name}: {e}")
+    for sub, prefix in (("h", "obs"), ("upper", "upper")):
+        for p in sorted((wind.SITE / sub).glob("*.json")):
+            t = rc.from_tag(p.stem)
+            if open_day(t) and not has(t, "wind", f"{prefix}_{p.stem}.json"):
+                d = json.loads(p.read_text())
+                (wind_obs if prefix == "obs" else wind_upper)(t, d["obs"] if prefix == "obs" else d)
+
+
+@_safe
 def pack(now):
     """Zip every complete day into the outbox (uploaded to GitHub releases by the workflow)."""
     for d in sorted(PENDING.glob("*")):

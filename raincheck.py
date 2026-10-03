@@ -566,6 +566,7 @@ def cmd_update():
         log(f"wind update failed: {e!r}")
 
     import archive
+    archive.catch_up(now)
     archive.pack(now)
 
 
