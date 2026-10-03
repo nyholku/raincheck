@@ -23,3 +23,12 @@ Run locally:
     cd _site && python3 -m http.server
 
 Data: Finnish Meteorological Institute open data, CC BY 4.0.
+
+## Archive
+
+FMI does not keep old forecasts, so everything collected is archived permanently: one zip per
+day, attached to a GitHub release per month (`archive-YYYY-MM`, see the Releases page). Each
+day holds every MEPS rain forecast run (all 48 h; full 2.3 km resolution up to 12 h ahead,
+4.6 km beyond), the hourly radar, every official and MEPS wind forecast version at all FMI
+wind stations, the station measurements and the ~3 km model wind. About 1 GB per year.
+`archive.py` documents the format and has `load()` / `decode_rain()` for reading it.

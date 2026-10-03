@@ -48,6 +48,22 @@ jobs:
       - name: Collect forecasts and verify against radar
         run: python raincheck.py update
 
+      # Finished days of raw data go to the permanent archive: one zip per day, attached to
+      # a release per month ("archive-YYYY-MM"). A failed upload is retried next run.
+      - name: Upload finished archive days
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          shopt -s nullglob
+          for f in data/archive/outbox/*.zip; do
+            day=$(basename "$f" .zip); day=${day#raincheck-}
+            rel="archive-${day:0:4}-${day:4:2}"
+            gh release view "$rel" >/dev/null 2>&1 || gh release create "$rel" --latest=false \
+              --title "Data archive ${day:0:4}-${day:4:2}" \
+              --notes "Daily raw data files (forecasts, radar, station wind). Format: see archive.py."
+            gh release upload "$rel" "$f" --clobber && rm "$f"
+          done
+
       - name: Save data branch
         run: |
           cd data

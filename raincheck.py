@@ -138,7 +138,7 @@ def fetch_run(origin, url):
     url = re.sub(r"starttime=[^&]+", "starttime=" + iso(origin + dt.timedelta(hours=1)), url)
     url = re.sub(r"endtime=[^&]+", "endtime=" + iso(origin + dt.timedelta(hours=MAX_LEAD)), url)
     raw = http_get(url, timeout=600)
-    valid, fields = [], []
+    valid, fields, mm = [], [], []
     with rasterio.MemoryFile(raw) as mf, mf.open() as src:
         for band in range(1, src.count + 1):
             t = dt.datetime.strptime(src.tags(band)["TIME"], "%Y%m%dT%H%M%S").replace(tzinfo=UTC)
@@ -150,10 +150,13 @@ def fetch_run(origin, url):
                       dst_transform=TRANSFORM, dst_crs=CRS, src_nodata=np.nan,
                       dst_nodata=np.nan, resampling=Resampling.bilinear)
             valid.append(int(t.timestamp()))
+            mm.append(dst)
             fields.append(np.where(np.isnan(dst), RADAR_NODATA,
                                    np.clip(np.round(dst / RADAR_SCALE), 0, 65000)).astype(np.uint16))
     FC_DIR.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(fc_path(origin), valid=np.array(valid), rr=np.stack(fields))
+    import archive
+    archive.rain_run(origin, valid, np.stack(mm))
     return len(valid)
 
 
@@ -410,6 +413,8 @@ def verify(now):
         except Exception as e:
             log(f"{iso(t)}: radar: {e}")
             continue
+        import archive
+        archive.rain_obs(t, obs)
         obs_cls = classify(obs)
         hour_dir = SITE / "h" / key
         save_classes(obs_cls, hour_dir / "obs.png")
@@ -559,6 +564,9 @@ def cmd_update():
         wind.update(now)
     except Exception as e:
         log(f"wind update failed: {e!r}")
+
+    import archive
+    archive.pack(now)
 
 
 def cmd_build_site(out):

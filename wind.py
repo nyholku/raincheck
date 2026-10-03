@@ -21,6 +21,7 @@ from rasterio import features
 from rasterio.transform import from_bounds
 from rasterio.warp import Resampling, reproject, transform
 
+import archive
 import raincheck as rc
 from raincheck import UTC, from_tag, http_get, iso, log, tag
 
@@ -163,6 +164,7 @@ def save_fc(source, origin, valid, ws, wd, gust, station_ids):
     rc.FC_DIR.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(fc_file(source, origin), valid=np.array(valid), ids=np.array(station_ids, dtype=np.int64),
                         ws=np.asarray(ws, np.float32), wd=np.asarray(wd, np.float32), gust=np.asarray(gust, np.float32))
+    archive.wind_run(source, origin, fc_file(source, origin))
 
 
 POINT_QUERIES = {   # source: (stored query, parameters: speed, direction, gust[, land-sea mask])
@@ -299,6 +301,7 @@ def collect_upper(now, stations):
         if path.exists() and json.loads(path.read_text())["origin"] >= origin:
             continue
         path.write_text(json.dumps({"origin": origin, "v": vals}, separators=(",", ":")))
+        archive.wind_upper(dt.datetime.fromtimestamp(e, UTC), {"origin": origin, "v": vals})
 
 
 # ---------------------------------------------------------------------------- observations
@@ -451,6 +454,7 @@ def verify(now, stations, sets):
         metas[tag(t)] = meta
         (SITE / "h").mkdir(parents=True, exist_ok=True)
         (SITE / "h" / f"{tag(t)}.json").write_text(json.dumps(hour, separators=(",", ":")))
+        archive.wind_obs(t, hour["obs"])
         log(f"{iso(t)}: wind verified at {len(obs)} stations")
     rescore(metas, sets)
     save_metas(metas)
