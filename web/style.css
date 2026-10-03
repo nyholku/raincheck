@@ -119,14 +119,20 @@ a { color: var(--accent); }
 .wind-map svg { display: block; width: 100%; max-height: 82vh; }
 .wind-map circle { cursor: pointer; }
 .wind-map circle:focus { outline: none; stroke: var(--accent); }
-.tip { position: absolute; z-index: 2; pointer-events: none; background: var(--card); color: var(--fg);
+.tip { position: fixed; z-index: 5; pointer-events: none; background: var(--card); color: var(--fg);
   border: 1px solid var(--line); border-radius: 6px; padding: 6px 9px; font-size: 13px; line-height: 1.4;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15); max-width: 260px; }
-.err-scale { display: inline-grid; gap: 2px; min-width: 260px; flex: 1; max-width: 420px; }
+.err-scale { display: inline-grid; gap: 2px; min-width: 240px; flex: 1; max-width: 380px; }
 .err-scale .bar { height: 12px; border-radius: 3px; }
 .err-scale .ticks { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+.err-scale .ticks.ws { position: relative; display: block; height: 14px; }
+.err-scale .ticks.ws span { position: absolute; transform: translateX(-50%); }
+.err-scale .ticks.ws span:first-child { transform: none; }
+.err-scale .ticks.ws span:last-child { transform: translateX(-100%); }
 .arrow-key { width: 16px !important; height: 3px !important; border-radius: 2px !important; vertical-align: 3px !important; }
-.station { margin-top: 0; }
+.wind-maps { margin-top: 8px; }
+.wind-maps figcaption { min-height: 2.9em; }
+.map-tools { margin-top: 14px; }
 .station .chart { height: 260px; }
 .table-scroll { overflow-x: auto; }
 .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }

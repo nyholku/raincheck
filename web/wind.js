@@ -33,20 +33,21 @@ const tagDate = (t) => new Date(Date.UTC(+t.slice(0, 4), +t.slice(4, 6) - 1, +t.
 const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const bucketLabel = ([lo, hi]) => `${lo}–${hi} h ahead`;
 const ms = (v, d = 1) => (v == null || isNaN(v) ? "–" : `${v.toFixed(d)} m/s`);
-const signed = (v) => (v == null || isNaN(v) ? "–" : `${v > 0 ? "+" : v < 0 ? "−" : "±"}${Math.abs(v).toFixed(1)} m/s`);
+const signed = (v) => (v == null || isNaN(v) ? "–" : Math.abs(v) < 0.05 ? "±0.0 m/s" : `${v > 0 ? "+" : "−"}${Math.abs(v).toFixed(1)} m/s`);
 const pct = (v) => (v == null || isNaN(v) ? "–" : `${Math.round(v * 100)} %`);
 const compass = (d) => (d == null || isNaN(d) ? "" : COMPASS[Math.round(((d % 360) + 360) % 360 / 45) % 8]);
-function errRGB(e) {
-  if (e <= ERR_STOPS[0][0]) return ERR_STOPS[0][1];
-  for (let k = 1; k < ERR_STOPS.length; k++) {
-    const [e1, c1] = ERR_STOPS[k];
+function ramp(stops, e) {
+  if (e <= stops[0][0]) return stops[0][1];
+  for (let k = 1; k < stops.length; k++) {
+    const [e1, c1] = stops[k];
     if (e <= e1) {
-      const [e0, c0] = ERR_STOPS[k - 1], f = (e - e0) / (e1 - e0);
+      const [e0, c0] = stops[k - 1], f = (e - e0) / (e1 - e0);
       return [0, 1, 2].map((j) => Math.round(c0[j] + (c1[j] - c0[j]) * f));
     }
   }
-  return ERR_STOPS[ERR_STOPS.length - 1][1];
+  return stops[stops.length - 1][1];
 }
+const errRGB = (e) => ramp(ERR_STOPS, e);
 const errColor = (e) => `rgb(${errRGB(e).join(",")})`;
 const errWords = (e) => (Math.abs(e) < 0.05 ? "spot on" : `${Math.abs(e).toFixed(1)} m/s too ${e > 0 ? "strong" : "weak"}`);
 const srcColor = (s) => css(s === "official" ? "--s1" : "--s2");
@@ -75,7 +76,13 @@ async function hourData(t) {
   return hourCache.get(t);
 }
 
-// ------------------------------------------------------------------ map
+// ------------------------------------------------------------------ maps
+
+const PANELS = ["obs", "fc", "err"];
+// wind speed (m/s): light lavender (calm) … deep purple (storm)
+const WS_STOPS = [[0, [232, 226, 246]], [4, [198, 184, 234]], [8, [152, 124, 210]], [11, [118, 86, 186]], [14, [88, 52, 158]], [20, [44, 16, 96]]];
+const wsRGB = (v) => ramp(WS_STOPS, v);
+const wsColor = (v) => `rgb(${wsRGB(v).join(",")})`;
 
 function svg(tag, attrs, parent) {
   const el = document.createElementNS(SVGNS, tag);
@@ -84,27 +91,41 @@ function svg(tag, attrs, parent) {
   return el;
 }
 
-function setupMap() {
-  const map = $("#map");
-  svg("rect", { x: 0, y: 0, width: C.width, height: C.height, fill: "#fff" }, map);
-  svg("image", { id: "field", x: 0, y: 0, width: C.width, height: C.height, preserveAspectRatio: "none" }, map);
-  svg("image", { href: "map.svg", x: 0, y: 0, width: C.width, height: C.height }, map);
-  svg("g", { id: "arrows-g" }, map);
-  svg("g", { id: "dots-g" }, map);
-  map.addEventListener("pointerleave", () => ($("#tip").hidden = true));
-  map.addEventListener("pointermove", (ev) => {
-    if (ev.target.tagName === "circle" || !FIELD.values) return;
-    const pt = new DOMPoint(ev.clientX, ev.clientY).matrixTransform(map.getScreenCTM().inverse());
-    const x = Math.floor(pt.x), y = Math.floor(pt.y);
-    const v = x >= 0 && y >= 0 && x < C.width && y < C.height ? FIELD.values[y * C.width + x] : NaN;
-    if (isNaN(v)) { $("#tip").hidden = true; return; }
-    tipAt(ev, `<b>Sea area</b>, estimated from nearby stations:<br>forecast about ${errWords(v)}`);
-  });
+function setupMaps() {
+  for (const p of PANELS) {
+    const map = $(`#map-${p}`);
+    svg("rect", { x: 0, y: 0, width: C.width, height: C.height, fill: "#fff" }, map);
+    svg("image", { id: `field-${p}`, x: 0, y: 0, width: C.width, height: C.height, preserveAspectRatio: "none" }, map);
+    svg("image", { href: "map.svg", x: 0, y: 0, width: C.width, height: C.height }, map);
+    svg("g", { id: `arrows-${p}` }, map);
+    svg("g", { id: `dots-${p}` }, map);
+    map.addEventListener("pointerleave", () => ($("#tip").hidden = true));
+    map.addEventListener("pointermove", (ev) => {
+      if (ev.target.tagName === "circle") return;
+      const f = FIELD[p];
+      if (!f) return;
+      const pt = new DOMPoint(ev.clientX, ev.clientY).matrixTransform(map.getScreenCTM().inverse());
+      const x = Math.floor(pt.x), y = Math.floor(pt.y);
+      const v = x >= 0 && y >= 0 && x < C.width && y < C.height ? f[y * C.width + x] : NaN;
+      if (isNaN(v)) { $("#tip").hidden = true; return; }
+      const text = p === "err" ? `forecast about ${errWords(v)}` : `${p === "obs" ? "measured" : "forecast"} about ${v.toFixed(1)} m/s`;
+      tipAt(ev, `<b>Sea</b>, estimated from nearby stations:<br>${text}`);
+    });
+  }
 }
 
-// ------------------------------------------------------------------ continuous error field over the sea
+function applyZoom() {
+  const [x, y, w, h] = ZOOMS[state.zoom][1];
+  for (const p of PANELS) {
+    const map = $(`#map-${p}`);
+    map.setAttribute("viewBox", `${x} ${y} ${w} ${h}`);
+    map.style.aspectRatio = `${w} / ${h}`;
+  }
+}
 
-const FIELD = { mask: null, cells: null, values: null, url: null };
+// ------------------------------------------------------------------ continuous fields over the sea
+
+const FIELD = { mask: null, cells: null, url: {} };
 
 async function loadSea() {
   const img = new Image();
@@ -117,9 +138,8 @@ async function loadSea() {
   const d = ctx.getImageData(0, 0, W, H).data;
   FIELD.mask = new Uint8Array(W * H);
   for (let i = 0; i < FIELD.mask.length; i++) FIELD.mask[i] = d[i * 4] > 127 ? 1 : 0;
-  // coarse cells (rain-grid pixels) that contain some sea: the field is computed for these only
-  const cells = [];
-  const k = C.sea_scale;
+  // coarse cells (rain-grid pixels) that contain some sea: fields are computed for these only
+  const cells = [], k = C.sea_scale;
   for (let y = 0; y < C.height; y++) for (let x = 0; x < C.width; x++) {
     let sea = false;
     for (let j = 0; j < k && !sea; j++) for (let i = 0; i < k; i++) if (FIELD.mask[(y * k + j) * W + x * k + i]) { sea = true; break; }
@@ -128,28 +148,35 @@ async function loadSea() {
   FIELD.cells = Int32Array.from(cells);
 }
 
-// points: [{x, y, e}] in grid pixels; returns per-cell error (NaN = no colour) and draws the layer
-async function drawField(points) {
-  const el = document.getElementById("field");
-  if (!FIELD.cells) return;
-  const W = C.width, k = C.sea_scale, km = C.pixel_km;
+// Blend station values over the sea: Gaussian-weighted mean of nearby stations, fading out
+// with distance to the nearest one. points: [{x, y, v}] in grid pixels.
+function blend(points) {
+  const W = C.width, km = C.pixel_km;
   const values = new Float32Array(W * C.height).fill(NaN), alpha = new Float32Array(W * C.height);
+  if (!FIELD.cells || !points.length) return { values, alpha };
   const s2 = 2 * (FIELD_SIGMA_KM / km) ** 2, full = FIELD_FULL_KM / km, fade = FIELD_FADE_KM / km;
   for (const c of FIELD.cells) {
     const cx = (c % W) + 0.5, cy = Math.floor(c / W) + 0.5;
-    let sw = 0, se = 0, near = Infinity;
+    let sw = 0, sv = 0, near = Infinity;
     for (const p of points) {
       const d2 = (p.x - cx) ** 2 + (p.y - cy) ** 2;
       const w = Math.exp(-d2 / s2) + 1e-12 / (1 + d2);   // tiny term keeps far cells defined
-      sw += w; se += w * p.e;
+      sw += w; sv += w * p.v;
       if (d2 < near) near = d2;
     }
     near = Math.sqrt(near);
-    if (!points.length || near > fade) continue;
-    values[c] = se / sw;
+    if (near > fade) continue;
+    values[c] = sv / sw;
     alpha[c] = near <= full ? 1 : 1 - (near - full) / (fade - full);
   }
-  FIELD.values = values;
+  return { values, alpha };
+}
+
+async function paintField(p, { values, alpha }, colorOf) {
+  FIELD[p] = values;
+  const el = document.getElementById(`field-${p}`);
+  if (!FIELD.mask) return;
+  const W = C.width, k = C.sea_scale;
   const cv = Object.assign(document.createElement("canvas"), { width: W * k, height: C.height * k });
   const ctx = cv.getContext("2d");
   const img = ctx.createImageData(W * k, C.height * k), d = img.data;
@@ -158,21 +185,14 @@ async function drawField(points) {
     if (!FIELD.mask[i]) continue;
     const c = Math.floor(y / k) * W + Math.floor(x / k);
     if (isNaN(values[c])) continue;
-    const rgb = errRGB(values[c]);
-    d[i * 4] = rgb[0]; d[i * 4 + 1] = rgb[1]; d[i * 4 + 2] = rgb[2]; d[i * 4 + 3] = Math.round(225 * alpha[c]);
+    const rgb = colorOf(values[c]);
+    d[i * 4] = rgb[0]; d[i * 4 + 1] = rgb[1]; d[i * 4 + 2] = rgb[2]; d[i * 4 + 3] = Math.round(230 * alpha[c]);
   }
   ctx.putImageData(img, 0, 0);
   const blob = await new Promise((r) => cv.toBlob(r));
-  if (FIELD.url) URL.revokeObjectURL(FIELD.url);
-  FIELD.url = URL.createObjectURL(blob);
-  el.setAttribute("href", FIELD.url);
-}
-
-function applyZoom() {
-  const [x, y, w, h] = ZOOMS[state.zoom][1];
-  const map = $("#map");
-  map.setAttribute("viewBox", `${x} ${y} ${w} ${h}`);
-  map.style.aspectRatio = `${w} / ${h}`;
+  if (FIELD.url[p]) URL.revokeObjectURL(FIELD.url[p]);
+  FIELD.url[p] = URL.createObjectURL(blob);
+  el.setAttribute("href", FIELD.url[p]);
 }
 
 function arrow(g, x, y, dir, speed, color, width, scale) {
@@ -189,46 +209,59 @@ function arrow(g, x, y, dir, speed, color, width, scale) {
   }, g);
 }
 
-async function drawMap(h) {
+const ok = (v) => v && v[0] != null;
+
+async function drawMaps(h) {
   const my = ++token;
   const data = await hourData(h.t);
   if (my !== token) return;
   const fc = data.fc[state.src] && data.fc[state.src][state.b];
   const typical = IDX.stats[state.src][state.b];
   const scale = ZOOMS[state.zoom][1][2] / 425;
-  const dots = $("#dots-g"), arrows = $("#arrows-g");
-  dots.replaceChildren(); arrows.replaceChildren();
-  const ink = css("--ink"), fcCol = srcColor(state.src);
-  const points = [];
+  const ink = css("--ink");
+  const pts = { obs: [], fc: [], err: [] };
+  for (const p of PANELS) { $(`#dots-${p}`).replaceChildren(); $(`#arrows-${p}`).replaceChildren(); }
 
   for (const [fid, st] of Object.entries(IDX.stations)) {
-    if (!visible(fid)) continue;
     const o = data.obs[fid], f = fc && fc[fid];
     let err = null;
-    if (state.mode === "hour") err = o && f && o[0] != null && f[0] != null ? f[0] - o[0] : null;
+    if (state.mode === "hour") err = ok(o) && ok(f) ? f[0] - o[0] : null;
     else if (typical[fid] && typical[fid][0] >= 3) err = typical[fid][2] / typical[fid][0];
-    if (err != null && st.sea) points.push({ x: st.px, y: st.py, e: err });
-    if (state.arrows && state.mode === "hour") {
-      if (f) arrow(arrows, st.px, st.py, f[1], f[0], fcCol, 1.6 * scale, scale);
-      if (o) arrow(arrows, st.px, st.py, o[1], o[0], ink, 1.1 * scale, scale);
+    if (st.sea) {
+      if (ok(o)) pts.obs.push({ x: st.px, y: st.py, v: o[0] });
+      if (ok(f)) pts.fc.push({ x: st.px, y: st.py, v: f[0] });
+      if (err != null) pts.err.push({ x: st.px, y: st.py, v: err });
     }
-    const c = svg("circle", {
-      cx: st.px, cy: st.py, r: (st.sea ? 3.2 : 2.6) * scale,
-      fill: err == null ? "#bdbdbd" : errColor(err), stroke: "#333", "stroke-width": 0.6 * scale,
-      tabindex: 0, role: "button", "aria-label": st.name,
-    }, dots);
-    if (fid === state.station) c.setAttribute("stroke-width", 2 * scale);
-    const show = (ev) => showTip(ev, fid, o, f, typical[fid]);
-    c.addEventListener("pointerenter", show);
-    c.addEventListener("pointermove", show);
-    c.addEventListener("click", () => selectStation(fid));
-    c.addEventListener("keydown", (e) => { if (e.key === "Enter") selectStation(fid); });
+    if (!visible(fid)) continue;
+    const per = {
+      obs: [ok(o) ? wsColor(o[0]) : null, o],
+      fc: [ok(f) ? wsColor(f[0]) : null, f],
+      err: [err == null ? null : errColor(err), null],
+    };
+    for (const p of PANELS) {
+      const [fill, wind] = per[p];
+      if (state.arrows && wind && ok(wind)) arrow($(`#arrows-${p}`), st.px, st.py, wind[1], wind[0], ink, 1.3 * scale, scale);
+      const c = svg("circle", {
+        cx: st.px, cy: st.py, r: (st.sea ? 3.2 : 2.6) * scale, fill: fill || "#bdbdbd",
+        stroke: "#333", "stroke-width": (fid === state.station ? 2 : 0.6) * scale,
+        tabindex: 0, role: "button", "aria-label": st.name,
+      }, $(`#dots-${p}`));
+      const show = (ev) => showTip(ev, fid, o, f, typical[fid]);
+      c.addEventListener("pointerenter", show);
+      c.addEventListener("pointermove", show);
+      c.addEventListener("click", () => selectStation(fid));
+      c.addEventListener("keydown", (e) => { if (e.key === "Enter") selectStation(fid); });
+    }
   }
-  await drawField(points);
+  await Promise.all([
+    paintField("obs", blend(pts.obs), wsRGB),
+    paintField("fc", blend(pts.fc), wsRGB),
+    paintField("err", blend(pts.err), errRGB),
+  ]);
 }
 
 function windText(v, gustLabel) {
-  if (!v) return "no data";
+  if (!ok(v)) return "no data";
   const g = v[2] != null ? `, ${gustLabel} ${v[2].toFixed(1)}` : "";
   return `${v[0].toFixed(1)} m/s ${compass(v[1]) ? "from " + compass(v[1]) : ""}${g}`;
 }
@@ -236,22 +269,18 @@ function windText(v, gustLabel) {
 function tipAt(ev, html) {
   const tip = $("#tip");
   tip.innerHTML = html;
-  const box = $(".wind-map").getBoundingClientRect();
-  const x = ev.clientX - box.left, y = ev.clientY - box.top;
   tip.hidden = false;
-  tip.style.left = `${Math.max(4, Math.min(x + 12, box.width - tip.offsetWidth - 4))}px`;
-  tip.style.top = `${y + 14 + tip.offsetHeight > box.height ? y - tip.offsetHeight - 10 : y + 14}px`;
+  const x = ev.clientX, y = ev.clientY;
+  tip.style.left = `${Math.max(4, Math.min(x + 12, innerWidth - tip.offsetWidth - 8))}px`;
+  tip.style.top = `${y + 14 + tip.offsetHeight > innerHeight ? y - tip.offsetHeight - 10 : y + 14}px`;
 }
 
 function showTip(ev, fid, o, f, typ) {
   const st = IDX.stations[fid];
-  let html = `<b>${st.name}</b>${st.sea ? " · at sea" : st.lake ? " · lake" : ""}<br>`;
-  if (state.mode === "hour") {
-    html += `Measured: ${windText(o, "gusts")}<br>Forecast: ${windText(f, "gusts")}`;
-    if (o && f && o[0] != null && f[0] != null) html += `<br><b>${errWords(f[0] - o[0])}</b>`;
-  } else if (typ) {
-    html += `Last 2 weeks (${typ[0]} h): typically ${(typ[1] / typ[0]).toFixed(1)} m/s off, on average ${signed(typ[2] / typ[0])}`;
-  } else html += "Not enough data yet";
+  let html = `<b>${st.name}</b>${st.sea ? " · at sea" : st.lake ? " · lake" : ""}<br>` +
+    `Measured: ${windText(o, "gusts")}<br>Forecast: ${windText(f, "gusts")}`;
+  if (ok(o) && ok(f)) html += `<br><b>${errWords(f[0] - o[0])}</b>`;
+  if (state.mode === "typical" && typ) html += `<br>Last 2 weeks (${typ[0]} h): typically ${(typ[1] / typ[0]).toFixed(1)} m/s off, on average ${signed(typ[2] / typ[0])}`;
   tipAt(ev, html);
 }
 
@@ -271,20 +300,28 @@ async function draw() {
   $("#t-windy").textContent = s ? (s.windy ? pct(s.pod) : "none windy") : "–";
   $("#t-windy-k").textContent = `windy (≥ ${state.thr} m/s) stations forecast windy`;
   const lead = h.leads[state.src] && h.leads[state.src][state.b];
-  $("#fc-key-label").textContent = lead
-    ? `${C.sources[state.src]}, made ${lead} h before`
-    : `no ${C.sources[state.src]} made ${bucketLabel(C.buckets[state.b])} for this hour`;
-  $("#fc-key").style.background = srcColor(state.src);
-  await drawMap(h);
+  const origin = lead && h.origins[state.src][state.b];
+  $("#cap-obs").textContent = `Measured wind at ${fmtHM.format(end)}`;
+  $("#cap-fc").textContent = lead
+    ? `${C.sources[state.src]} from ${fmtHM.format(new Date(origin))}, ${lead} h before`
+    : `No ${C.sources[state.src]} made ${bucketLabel(C.buckets[state.b])} for this hour`;
+  $("#cap-err").textContent = state.mode === "hour" ? "Right or wrong?" : "Typical error, last 2 weeks";
+  await drawMaps(h);
   if (hoursChart) hoursChart.update();
 }
 
 function errLegend() {
-  const grad = ERR_STOPS.map(([e, c]) => `rgb(${c.join(",")}) ${((e + 4) / 8) * 100}%`).join(",");
+  const grad = (stops, lo, hi) => stops.map(([e, c]) => `rgb(${c.join(",")}) ${((e - lo) / (hi - lo)) * 100}%`).join(",");
+  $("#ws-legend").innerHTML = `<span class="label">Wind speed</span>` +
+    `<span class="err-scale"><span class="bar" style="background:linear-gradient(90deg,${grad(WS_STOPS, 0, 20)})"></span>` +
+    `<span class="ticks ws">${[0, 4, 8, 11, 14, 20].map((v) => `<span style="left:${(v / 20) * 100}%">${v}${v === 20 ? "+" : ""}</span>`).join("")}</span></span>` +
+    `<span class="muted">m/s</span>`;
   $("#err-legend").innerHTML =
     `<span class="label">${state.mode === "hour" ? "Forecast wind was" : "Forecast wind is typically"}</span>` +
-    `<span class="err-scale"><span class="bar" style="background:linear-gradient(90deg,${grad})"></span>` +
-    `<span class="ticks"><span>4 m/s too weak</span><span>2</span><span>about right</span><span>2</span><span>4 m/s too strong</span></span></span>`;
+    `<span class="err-scale"><span class="bar" style="background:linear-gradient(90deg,${grad(ERR_STOPS, -4, 4)})"></span>` +
+    `<span class="ticks ws">${[-4, -2, 0, 2, 4].map((v) => `<span style="left:${((v + 4) / 8) * 100}%">${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v)}</span>`).join("")}</span>` +
+    `<span class="ticks"><span>too weak</span><span>about right</span><span>too strong</span></span></span>` +
+    `<span class="muted">m/s</span>`;
 }
 
 // ------------------------------------------------------------------ station panel
@@ -487,7 +524,7 @@ async function main() {
   const firstB = (last.leads[state.src] || []).findIndex(Boolean);
   state.b = firstB >= 0 ? firstB : 0;
   chartDefaults();
-  setupMap();
+  setupMaps();
   await loadSea().catch(() => {});
   setupControls();
   applyZoom();

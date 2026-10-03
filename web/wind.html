@@ -44,30 +44,40 @@
   <div class="tile"><span class="v" id="t-windy">–</span><span class="k" id="t-windy-k">windy stations forecast windy</span></div>
 </section>
 
-<section class="wind-main">
-  <div class="wind-map-wrap">
-    <div class="row map-tools">
-      <div class="seg" id="zoom" role="radiogroup" aria-label="Map area"></div>
-      <div class="seg" id="mode" role="radiogroup" aria-label="Map colours"></div>
-      <label class="check"><input type="checkbox" id="arrows" checked> Wind arrows</label>
-    </div>
-    <div class="wind-map">
-      <svg id="map" role="img" aria-label="Sea coloured by forecast wind error"></svg>
-      <div id="tip" class="tip" hidden></div>
-    </div>
-    <div class="legend" id="err-legend"></div>
-    <div class="legend">
-      <span><i class="arrow-key" style="background:var(--ink)"></i>measured wind</span>
-      <span><i class="arrow-key" style="background:var(--s1)" id="fc-key"></i><span id="fc-key-label">forecast wind</span></span>
-      <span class="muted">Arrows point where the wind blows to; longer = stronger.</span>
-    </div>
-  </div>
-  <aside class="card station" id="station">
-    <h2 id="st-name">Pick a station</h2>
-    <p class="muted" id="st-note">Tap or click a station on the map to see measured and forecast wind there over the last two weeks.</p>
-    <div class="chart" id="st-chart-wrap" hidden><canvas id="ch-station"></canvas></div>
-    <table id="st-table"></table>
-  </aside>
+<div class="row map-tools">
+  <div class="seg" id="zoom" role="radiogroup" aria-label="Map area"></div>
+  <div class="seg" id="mode" role="radiogroup" aria-label="Right-or-wrong map shows"></div>
+  <label class="check"><input type="checkbox" id="arrows" checked> Wind arrows</label>
+</div>
+
+<section class="maps wind-maps">
+  <figure>
+    <figcaption id="cap-obs">Measured wind</figcaption>
+    <div class="wind-map"><svg id="map-obs" role="img" aria-label="Sea coloured by measured wind speed"></svg></div>
+  </figure>
+  <figure>
+    <figcaption id="cap-fc">Forecast wind</figcaption>
+    <div class="wind-map"><svg id="map-fc" role="img" aria-label="Sea coloured by forecast wind speed"></svg></div>
+  </figure>
+  <figure>
+    <figcaption id="cap-err">Right or wrong?</figcaption>
+    <div class="wind-map"><svg id="map-err" role="img" aria-label="Sea coloured by forecast wind error"></svg></div>
+  </figure>
+</section>
+<div id="tip" class="tip" hidden></div>
+
+<section class="legends">
+  <div class="legend" id="ws-legend"></div>
+  <div class="legend" id="err-legend"></div>
+  <div class="legend muted">Arrows point where the wind blows to; longer = stronger.
+    Colours over the sea are blended from the sea stations (dots).</div>
+</section>
+
+<section class="card station" id="station">
+  <h2 id="st-name">Pick a station</h2>
+  <p class="muted" id="st-note">Tap or click a station on the maps to see measured and forecast wind there over the last two weeks.</p>
+  <div class="chart" id="st-chart-wrap" hidden><canvas id="ch-station"></canvas></div>
+  <table id="st-table"></table>
 </section>
 
 <section class="card">
