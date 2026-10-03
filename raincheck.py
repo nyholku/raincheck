@@ -568,6 +568,15 @@ def cmd_build_site(out):
     shutil.copytree(WEB, out)
     if SITE.exists():
         shutil.copytree(SITE, out, dirs_exist_ok=True)
+    # give scripts and styles a content-based version so browsers never mix old and new files
+    import hashlib
+    assets = [f for f in WEB.iterdir() if f.suffix in (".js", ".css")]
+    for page in out.glob("*.html"):
+        html = page.read_text()
+        for f in assets:
+            version = hashlib.sha1(f.read_bytes()).hexdigest()[:10]
+            html = html.replace(f'"{f.name}"', f'"{f.name}?v={version}"')
+        page.write_text(html)
     log(f"site written to {out}")
 
 
