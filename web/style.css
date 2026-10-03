@@ -130,6 +130,7 @@ a { color: var(--accent); }
 .err-scale .ticks.ws span { position: absolute; transform: translateX(-50%); }
 .err-scale .ticks.ws span:first-child { transform: none; }
 .err-scale .ticks.ws span:last-child { transform: translateX(-100%); }
+.arrow-key.wide { height: 4px !important; }
 .arrow-key { width: 16px !important; height: 3px !important; border-radius: 2px !important; vertical-align: 3px !important; }
 .wind-maps { margin-top: 8px; }
 .wind-maps figcaption { min-height: 2.9em; }

@@ -6,6 +6,8 @@ const RAIN = ["#ffffff", "#c6dbef", "#9ecae1", "#6baed6", "#4292c6", "#2171b5", 
 // stronger colours for rain drawn on top of the grey satellite picture
 const RAIN_SAT = ["#ffffff", "#8fe3ff", "#4cc6ff", "#1ea2ff", "#1670f0", "#3a4fd8", "#6a2fc0", "#9a159e", "#c8007a"];
 const CAT = { dry: "#ffffff", hit: "#009E73", miss: "#0072B2", fa: "#E69F00", nodata: "#e2e2e2" };
+const WIND_GROUND = "#1d1d1f", WIND_GROUND_DARK = "#ffffff";   // measured at stations
+const WIND_UPPER = "#e8590c", WIND_UPPER_DARK = "#ffa94d";     // model, ~3 km up
 const PERIODS = { "7d": "Last 7 days", "30d": "Last 30 days", all: "Since the start" };
 const HEL = (opts) => new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Helsinki", ...opts });
 const fmtDay = HEL({ weekday: "short", day: "numeric", month: "numeric" });
@@ -377,22 +379,39 @@ function refresh() { buildHoursChart(); buildLeadChart(); draw(); }
 
 // ------------------------------------------------------------------ measured wind arrows (from the wind tab's data)
 
-let windStations = null;
+let windIndex = null;
 const windHours = new Map();
+const getJSON = (u) => fetch(u).then((r) => (r.ok ? r.json() : null)).catch(() => null);
 
+// measured ground wind (stations) and model wind at ~3 km (lattice) for the hour ending at t
 async function windAt(t) {
-  try {
-    if (!windStations) windStations = fetch("wind/index.json").then((r) => r.json()).then((d) => d.stations);
-    const stations = await windStations;
-    if (!windHours.has(t)) {
-      windHours.set(t, fetch(`wind/h/${t}.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null));
-      if (windHours.size > 60) windHours.delete(windHours.keys().next().value);
-    }
-    const h = await windHours.get(t);
-    return h ? { stations, obs: h.obs } : null;
-  } catch (e) {
-    return null;
+  if (!windIndex) windIndex = getJSON("wind/index.json");
+  const idx = await windIndex;
+  if (!idx) return null;
+  if (!windHours.has(t)) {
+    windHours.set(t, Promise.all([getJSON(`wind/h/${t}.json`), getJSON(`wind/upper/${t}.json`)]));
+    if (windHours.size > 60) windHours.delete(windHours.keys().next().value);
   }
+  const [ground, upper] = await windHours.get(t);
+  if (!ground && !upper) return null;
+  return {
+    ground: ground ? Object.entries(idx.stations).map(([fid, st]) => [st.px, st.py, ground.obs[fid]]) : [],
+    upper: upper && idx.upper ? idx.upper.points.map(([x, y], i) => [x, y, upper.v[i]]) : [],
+  };
+}
+
+function arrowPaths(list) {
+  let d = "";
+  for (const [x1, y1, v] of list) {
+    if (!v || v[0] == null || v[1] == null || v[0] < 0.5) continue;
+    const len = Math.min(v[0], 20) * 1.6, a = ((v[1] + 180) * Math.PI) / 180;  // points downwind
+    const x2 = x1 + Math.sin(a) * len, y2 = y1 - Math.cos(a) * len;
+    const back = Math.atan2(y1 - y2, x1 - x2), hs = Math.max(len * 0.3, 2.4);
+    const p1 = `${x2 + hs * Math.cos(back + 0.45)},${y2 + hs * Math.sin(back + 0.45)}`;
+    const p2 = `${x2 + hs * Math.cos(back - 0.45)},${y2 + hs * Math.sin(back - 0.45)}`;
+    d += `M${x1},${y1}L${x2},${y2}M${p1}L${x2},${y2}L${p2}`;
+  }
+  return d;
 }
 
 // arrows point where the wind blows to; length grows with speed
@@ -400,21 +419,11 @@ function drawWind(wind, dark) {
   const svg = $("#obs-wind");
   svg.replaceChildren();
   if (!wind) return;
-  const ink = dark ? "#ffffff" : "#1d1d1f", halo = dark ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.85)";
-  let paths = "";
-  for (const [fid, st] of Object.entries(wind.stations)) {
-    const o = wind.obs[fid];
-    if (!o || o[0] == null || o[1] == null || o[0] < 0.5) continue;
-    const len = Math.min(o[0], 20) * 1.6, a = ((o[1] + 180) * Math.PI) / 180;
-    const x1 = st.px, y1 = st.py, x2 = x1 + Math.sin(a) * len, y2 = y1 - Math.cos(a) * len;
-    const back = Math.atan2(y1 - y2, x1 - x2), hs = Math.max(len * 0.32, 2.4);
-    const p1 = `${x2 + hs * Math.cos(back + 0.45)},${y2 + hs * Math.sin(back + 0.45)}`;
-    const p2 = `${x2 + hs * Math.cos(back - 0.45)},${y2 + hs * Math.sin(back - 0.45)}`;
-    paths += `M${x1},${y1}L${x2},${y2}M${p1}L${x2},${y2}L${p2}`;
-  }
-  svg.innerHTML =
-    `<path d="${paths}" stroke="${halo}" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>` +
-    `<path d="${paths}" stroke="${ink}" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
+  const halo = dark ? "rgba(0,0,0,0.65)" : "rgba(255,255,255,0.9)";
+  const layer = (d, color, w) => d ? `<path d="${d}" stroke="${halo}" stroke-width="${w + 1.8}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>` +
+    `<path d="${d}" stroke="${color}" stroke-width="${w}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>` : "";
+  svg.innerHTML = layer(arrowPaths(wind.ground), dark ? WIND_GROUND_DARK : WIND_GROUND, 1.1) +
+    layer(arrowPaths(wind.upper), dark ? WIND_UPPER_DARK : WIND_UPPER, 1.8);
 }
 
 function rainLegend() {

@@ -243,6 +243,64 @@ def forecasts_for(t, source, cache):
     return out
 
 
+# ---------------------------------------------------------------------------- wind aloft
+
+UPPER_PRESSURE = 700          # hPa, about 3 km up: roughly the level that steers rain clouds
+UPPER_STEP_PX = 36            # lattice spacing in map pixels (~85 km)
+UPPER_MAX_KM = 110            # only lattice points this close to some station (i.e. over/near Finland)
+
+
+def upper_points(stations):
+    path = WIND / "upper_points.json"
+    if path.exists():
+        return json.loads(path.read_text())
+    st = np.array([[s["px"], s["py"]] for s in stations.values()])
+    max_px = UPPER_MAX_KM / rc.PIXEL_KM
+    pts = []
+    for py in np.arange(UPPER_STEP_PX / 2, rc.HEIGHT, UPPER_STEP_PX):
+        for px in np.arange(UPPER_STEP_PX / 2, rc.WIDTH, UPPER_STEP_PX):
+            if np.hypot(st[:, 0] - px, st[:, 1] - py).min() > max_px:
+                continue
+            x = rc.BOUNDS[0] + px / rc.WIDTH * (rc.BOUNDS[2] - rc.BOUNDS[0])
+            y = rc.BOUNDS[3] - py / rc.HEIGHT * (rc.BOUNDS[3] - rc.BOUNDS[1])
+            lon, lat = transform(rc.CRS, "EPSG:4326", [x], [y])
+            pts.append({"px": float(px), "py": float(py), "lat": round(lat[0], 3), "lon": round(lon[0], 3)})
+    path.write_text(json.dumps(pts))
+    return pts
+
+
+def collect_upper(now, stations):
+    """MEPS wind at 700 hPa for the recent hours, kept per hour (newest model run wins)."""
+    pts = upper_points(stations)
+    end = rc.floor_hour(now)
+    base = [("service", "WFS"), ("version", "2.0.0"), ("request", "getFeature"),
+            ("storedquery_id", "fmi::forecast::meps::pressure::point::multipointcoverage"),
+            ("parameters", "WindSpeedMS,WindDirection"), ("pressure", str(UPPER_PRESSURE)),
+            ("timestep", "60"), ("starttime", iso(end - dt.timedelta(hours=8))), ("endtime", iso(end))]
+    origin, rows = None, []
+    for k in range(0, len(pts), 90):
+        xml = http_get(rc.WFS, base + [("latlon", f"{p['lat']},{p['lon']}") for p in pts[k:k + 90]]).decode()
+        m = re.search(r'analysis-time[^>]*>\s*<gml:timePosition>([^<]+)<', xml)
+        if not m:
+            raise RuntimeError("no analysis time in 3 km wind")
+        origin = m.group(1)
+        rows += parse_multipoint(xml)[2]
+    col = {(p["lat"], p["lon"]): j for j, p in enumerate(pts)}
+    hours = {}
+    for key, e, v in rows:
+        if key in col:
+            hours.setdefault(e, [None] * len(pts))[col[key]] = [r1(v[0]), r1(v[1])]
+    out = SITE / "upper"
+    out.mkdir(parents=True, exist_ok=True)
+    for e, vals in hours.items():
+        if not any(v and v[0] is not None for v in vals):   # before the model run started
+            continue
+        path = out / f"{tag(dt.datetime.fromtimestamp(e, UTC))}.json"
+        if path.exists() and json.loads(path.read_text())["origin"] >= origin:
+            continue
+        path.write_text(json.dumps({"origin": origin, "v": vals}, separators=(",", ":")))
+
+
 # ---------------------------------------------------------------------------- observations
 
 def fetch_obs(start, end):
@@ -403,7 +461,7 @@ def verify(now, stations, sets):
 
 def write_site(now, metas, stations, sets):
     cutoff = now - dt.timedelta(days=rc.KEEP_IMAGE_DAYS)
-    for p in (SITE / "h").glob("*.json"):
+    for p in [*(SITE / "h").glob("*.json"), *(SITE / "upper").glob("*.json")]:
         if from_tag(p.stem) < cutoff:
             p.unlink()
     hour_files = sorted((SITE / "h").glob("*.json"))
@@ -471,7 +529,9 @@ def write_site(now, metas, stations, sets):
 
     hours = [{"t": k, **metas[k]} for k in keys if k in metas]
     (SITE / "index.json").write_text(json.dumps(
-        {"updated": iso(now), "config": config, "stations": st, "hours": hours, "stats": stats},
+        {"updated": iso(now), "config": config, "stations": st, "hours": hours, "stats": stats,
+         "upper": {"pressure_hpa": UPPER_PRESSURE,
+                   "points": [[p["px"], p["py"]] for p in upper_points(stations)]}},
         ensure_ascii=False, separators=(",", ":")))
 
 
@@ -489,6 +549,10 @@ def update(now):
             collect(source, stations, now)
         except Exception as e:
             log(f"{source} wind forecast failed: {e}")
+    try:
+        collect_upper(now, stations)
+    except Exception as e:
+        log(f"3 km wind failed: {e}")
     sets = station_sets(stations, sea_mask())
     metas = verify(now, stations, sets)
     prune(now)
