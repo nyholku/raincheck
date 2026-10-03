@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Raincheck</title>
+<meta name="description" content="How well did the rain forecasts for Finland come true? Hour by hour, forecast vs. radar.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path d='M8 1C6 5 3 7.5 3 10.5a5 5 0 0 0 10 0C13 7.5 10 5 8 1z' fill='%230072B2'/></svg>">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>Raincheck</h1>
+  <p class="lede">How well did the rain forecasts for Finland come true? Each hour the forecast
+    is compared with what the weather radar actually measured.</p>
+  <p class="muted" id="updated">Loading…</p>
+</header>
+
+<section class="controls" aria-label="Choose what to show">
+  <div class="row hour-row">
+    <button id="prev" aria-label="Previous hour">◀</button>
+    <button id="play" aria-label="Play">▶</button>
+    <button id="next" aria-label="Next hour">▶</button>
+    <input id="hour" type="range" min="0" value="0" aria-label="Hour">
+    <button id="latest">Latest</button>
+  </div>
+  <div class="row">
+    <div class="field">
+      <span class="label">Forecast made</span>
+      <div class="seg" id="bucket" role="radiogroup"></div>
+    </div>
+    <div class="field">
+      <label class="label" for="thr">Counts as rain</label>
+      <select id="thr"></select>
+    </div>
+    <div class="field">
+      <label class="label" for="tol">Position tolerance</label>
+      <select id="tol"></select>
+    </div>
+  </div>
+</section>
+
+<h2 id="hour-title">&nbsp;</h2>
+
+<section class="tiles" aria-label="Scores for this hour">
+  <div class="tile"><span class="v" id="t-csi">–</span><span class="k">Overall score (CSI)</span></div>
+  <div class="tile"><span class="v" id="t-pod">–</span><span class="k">of the rain was forecast</span></div>
+  <div class="tile"><span class="v" id="t-far">–</span><span class="k">of forecast rain never came</span></div>
+  <div class="tile"><span class="v" id="t-bias">–</span><span class="k">forecast rain area vs. real</span></div>
+</section>
+
+<section class="maps">
+  <figure>
+    <figcaption>What actually fell (radar)</figcaption>
+    <div class="map"><canvas id="c-obs"></canvas><img class="bg" src="map.svg" alt=""></div>
+  </figure>
+  <figure>
+    <figcaption id="fc-caption">Forecast</figcaption>
+    <div class="map"><canvas id="c-fc"></canvas><img class="bg" src="map.svg" alt=""></div>
+  </figure>
+  <figure>
+    <figcaption>Right or wrong?</figcaption>
+    <div class="map"><canvas id="c-cat"></canvas><img class="bg" src="map.svg" alt=""></div>
+  </figure>
+</section>
+
+<section class="legends">
+  <div class="legend" id="rain-legend"><span class="label">mm in the hour</span></div>
+  <div class="legend">
+    <span><i style="background:var(--hit)"></i>rain, forecast right</span>
+    <span><i style="background:var(--miss)"></i>rain, not forecast</span>
+    <span><i style="background:var(--fa)"></i>forecast rain, stayed dry</span>
+    <span><i style="background:#fff;border:1px solid #bbb"></i>dry, correctly</span>
+    <span><i style="background:var(--nodata)"></i>outside radar range</span>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Hour by hour</h2>
+  <p class="muted">Overall score (CSI) for every hour of the last two weeks. The coloured line is
+    the forecast age you chose above; grey lines are the other ages. Gaps are hours without rain.
+    Click a point to see that hour's maps.</p>
+  <div class="chart"><canvas id="ch-hours"></canvas></div>
+</section>
+
+<section class="card">
+  <div class="head">
+    <h2>Does an older forecast do worse?</h2>
+    <div class="seg" id="period" role="radiogroup"></div>
+  </div>
+  <p class="muted" id="period-note"></p>
+  <div class="chart short"><canvas id="ch-lead"></canvas></div>
+  <table id="lead-table"></table>
+</section>
+
+<section class="card about">
+  <h2>How to read this</h2>
+  <ul>
+    <li><b>CSI</b> (critical success index) = forecast-right rain ÷ (forecast-right + not forecast + false alarm).
+      1 is perfect, 0 means none of the rain was where the forecast said. Dry areas that were correctly forecast
+      dry don't count, so a mostly-dry day doesn't look falsely good.</li>
+    <li><b>Position tolerance</b> forgives a rain area that arrived a little to the side. With 0 km, a shower
+      forecast 5 km off counts both as a miss and as a false alarm.</li>
+    <li><b>Forecast made … ahead</b> is counted from the model's start time. FMI publishes each run about
+      2–3 hours after its start, so the youngest forecasts were never actually available that early.</li>
+    <li>Forecast: FMI MEPS weather model, a new run every 3 hours. Observed: FMI radar composite,
+      1-hour rain. Data: Finnish Meteorological Institute open data, CC BY 4.0. Updated hourly.</li>
+  </ul>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
