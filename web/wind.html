@@ -52,7 +52,7 @@
       <label class="check"><input type="checkbox" id="arrows" checked> Wind arrows</label>
     </div>
     <div class="wind-map">
-      <svg id="map" role="img" aria-label="Stations coloured by forecast error"></svg>
+      <svg id="map" role="img" aria-label="Sea coloured by forecast wind error"></svg>
       <div id="tip" class="tip" hidden></div>
     </div>
     <div class="legend" id="err-legend"></div>
@@ -105,8 +105,12 @@
     <li><b>FMI official forecast</b> is the meteorologists' edited forecast, the one shown on ilmatieteenlaitos.fi
       and in its boating weather. It is updated about every hour. <b>MEPS</b> is the raw weather model, run every 3 hours.
       Both are read at the station's location (MEPS from its nearest 2.5 km grid point).</li>
-    <li><b>On the water</b>: stations whose surroundings are mostly sea or lake in the MEPS model (lighthouses,
-      islands, lake stations). A land station near the shore usually measures less wind than on open water.</li>
+    <li><b>At sea</b>: lighthouse, skerry, island and harbour stations at the sea. Lake and land stations are left out;
+      a land station near the shore usually measures less wind than on open water.</li>
+    <li><b>The coloured sea</b> is estimated from the sea stations' errors: each point of sea gets a weighted average of
+      the nearby stations (nearer counts more, about 30 km reach), so it is smooth between stations. It fades out
+      35–90 km from the nearest station; further out nothing is known. Red: the forecast promised less wind than came
+      (the risky direction for boaters); green: about right; blue: the forecast was too pessimistic.</li>
     <li>Data: Finnish Meteorological Institute open data, CC BY 4.0. Updated hourly.</li>
   </ul>
 </section>

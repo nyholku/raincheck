@@ -7,23 +7,25 @@ const fmtDay = HEL({ weekday: "short", day: "numeric", month: "numeric" });
 const fmtHM = HEL({ hour: "2-digit", minute: "2-digit" });
 const fmtWd = HEL({ weekday: "short" });
 const PERIODS = { "7d": "Last 7 days", "30d": "Last 30 days", all: "Since the start" };
-const SETS = { water: "On the water", all: "All stations" };
+const SETS = { sea: "At sea", all: "All stations" };
 const ZOOMS = {
-  all: ["All Finland", [0, 0, 425, 673]],
+  coast: ["Whole coast", [40, 225, 300, 390]],
   south: ["South coast", [60, 470, 280, 140]],
   bothnia: ["Gulf of Bothnia", [55, 250, 230, 290]],
-  lakes: ["Lakes", [165, 360, 240, 230]],
-  north: ["Lapland", [40, 0, 360, 300]],
+  all: ["All Finland", [0, 0, 425, 673]],
 };
 const MODES = { hour: "This hour", typical: "Typical, 2 weeks" };
-// speed error (forecast − measured), m/s: too weak (blue) … too strong (red)
-const ERR_STEPS = [-4, -2, -1, 1, 2, 4];
-const ERR_COLORS = ["#2166ac", "#67a9cf", "#d1e5f0", "#efefef", "#fddbc7", "#ef8a62", "#b2182b"];
-const ERR_LABELS = ["4+ too weak", "2–4", "1–2", "±1 m/s", "1–2", "2–4", "4+ too strong"];
+// speed error (forecast − measured, m/s): too weak = red, about right = green, too strong = blue
+const ERR_STOPS = [
+  [-4, [150, 16, 32]], [-2.6, [214, 58, 42]], [-1.5, [240, 140, 60]], [-0.7, [178, 206, 92]],
+  [0, [72, 168, 84]], [0.7, [96, 186, 160]], [1.5, [82, 160, 214]], [2.6, [52, 104, 196]], [4, [30, 52, 140]],
+];
+const FIELD_SIGMA_KM = 30;           // how far one station's error spreads
+const FIELD_FULL_KM = 35, FIELD_FADE_KM = 90;  // colour fades out this far from the nearest station
 const COMPASS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
 
 let IDX, SUM, C, F;
-const state = { i: 0, b: 0, src: "official", set: "water", thr: 11, period: "7d", zoom: "all", mode: "hour", arrows: true, station: null };
+const state = { i: 0, b: 0, src: "official", set: "sea", thr: 11, period: "7d", zoom: "coast", mode: "hour", arrows: true, station: null };
 const hourCache = new Map();
 let hoursChart, leadChart, stationChart, timer = null, token = 0;
 
@@ -34,7 +36,19 @@ const ms = (v, d = 1) => (v == null || isNaN(v) ? "–" : `${v.toFixed(d)} m/s`)
 const signed = (v) => (v == null || isNaN(v) ? "–" : `${v > 0 ? "+" : v < 0 ? "−" : "±"}${Math.abs(v).toFixed(1)} m/s`);
 const pct = (v) => (v == null || isNaN(v) ? "–" : `${Math.round(v * 100)} %`);
 const compass = (d) => (d == null || isNaN(d) ? "" : COMPASS[Math.round(((d % 360) + 360) % 360 / 45) % 8]);
-const errColor = (e) => ERR_COLORS[ERR_STEPS.findIndex((s) => e < s) === -1 ? ERR_STEPS.length : ERR_STEPS.findIndex((s) => e < s)];
+function errRGB(e) {
+  if (e <= ERR_STOPS[0][0]) return ERR_STOPS[0][1];
+  for (let k = 1; k < ERR_STOPS.length; k++) {
+    const [e1, c1] = ERR_STOPS[k];
+    if (e <= e1) {
+      const [e0, c0] = ERR_STOPS[k - 1], f = (e - e0) / (e1 - e0);
+      return [0, 1, 2].map((j) => Math.round(c0[j] + (c1[j] - c0[j]) * f));
+    }
+  }
+  return ERR_STOPS[ERR_STOPS.length - 1][1];
+}
+const errColor = (e) => `rgb(${errRGB(e).join(",")})`;
+const errWords = (e) => (Math.abs(e) < 0.05 ? "spot on" : `${Math.abs(e).toFixed(1)} m/s too ${e > 0 ? "strong" : "weak"}`);
 const srcColor = (s) => css(s === "official" ? "--s1" : "--s2");
 
 // score vector -> readable numbers
@@ -51,7 +65,7 @@ function stats(v) {
   };
 }
 const hourStats = (h, src = state.src, b = state.b) => stats(h.s[src] && h.s[src][b] && h.s[src][b][state.set]);
-const visible = (fid) => state.set === "all" || IDX.stations[fid].water;
+const visible = (fid) => state.set === "all" || IDX.stations[fid].sea;
 
 async function hourData(t) {
   if (!hourCache.has(t)) {
@@ -73,10 +87,85 @@ function svg(tag, attrs, parent) {
 function setupMap() {
   const map = $("#map");
   svg("rect", { x: 0, y: 0, width: C.width, height: C.height, fill: "#fff" }, map);
+  svg("image", { id: "field", x: 0, y: 0, width: C.width, height: C.height, preserveAspectRatio: "none" }, map);
   svg("image", { href: "map.svg", x: 0, y: 0, width: C.width, height: C.height }, map);
   svg("g", { id: "arrows-g" }, map);
   svg("g", { id: "dots-g" }, map);
   map.addEventListener("pointerleave", () => ($("#tip").hidden = true));
+  map.addEventListener("pointermove", (ev) => {
+    if (ev.target.tagName === "circle" || !FIELD.values) return;
+    const pt = new DOMPoint(ev.clientX, ev.clientY).matrixTransform(map.getScreenCTM().inverse());
+    const x = Math.floor(pt.x), y = Math.floor(pt.y);
+    const v = x >= 0 && y >= 0 && x < C.width && y < C.height ? FIELD.values[y * C.width + x] : NaN;
+    if (isNaN(v)) { $("#tip").hidden = true; return; }
+    tipAt(ev, `<b>Sea area</b>, estimated from nearby stations:<br>forecast about ${errWords(v)}`);
+  });
+}
+
+// ------------------------------------------------------------------ continuous error field over the sea
+
+const FIELD = { mask: null, cells: null, values: null, url: null };
+
+async function loadSea() {
+  const img = new Image();
+  img.src = "wind/sea.png";
+  await img.decode();
+  const W = C.width * C.sea_scale, H = C.height * C.sea_scale;
+  const cv = Object.assign(document.createElement("canvas"), { width: W, height: H });
+  const ctx = cv.getContext("2d", { willReadFrequently: true });
+  ctx.drawImage(img, 0, 0);
+  const d = ctx.getImageData(0, 0, W, H).data;
+  FIELD.mask = new Uint8Array(W * H);
+  for (let i = 0; i < FIELD.mask.length; i++) FIELD.mask[i] = d[i * 4] > 127 ? 1 : 0;
+  // coarse cells (rain-grid pixels) that contain some sea: the field is computed for these only
+  const cells = [];
+  const k = C.sea_scale;
+  for (let y = 0; y < C.height; y++) for (let x = 0; x < C.width; x++) {
+    let sea = false;
+    for (let j = 0; j < k && !sea; j++) for (let i = 0; i < k; i++) if (FIELD.mask[(y * k + j) * W + x * k + i]) { sea = true; break; }
+    if (sea) cells.push(y * C.width + x);
+  }
+  FIELD.cells = Int32Array.from(cells);
+}
+
+// points: [{x, y, e}] in grid pixels; returns per-cell error (NaN = no colour) and draws the layer
+async function drawField(points) {
+  const el = document.getElementById("field");
+  if (!FIELD.cells) return;
+  const W = C.width, k = C.sea_scale, km = C.pixel_km;
+  const values = new Float32Array(W * C.height).fill(NaN), alpha = new Float32Array(W * C.height);
+  const s2 = 2 * (FIELD_SIGMA_KM / km) ** 2, full = FIELD_FULL_KM / km, fade = FIELD_FADE_KM / km;
+  for (const c of FIELD.cells) {
+    const cx = (c % W) + 0.5, cy = Math.floor(c / W) + 0.5;
+    let sw = 0, se = 0, near = Infinity;
+    for (const p of points) {
+      const d2 = (p.x - cx) ** 2 + (p.y - cy) ** 2;
+      const w = Math.exp(-d2 / s2) + 1e-12 / (1 + d2);   // tiny term keeps far cells defined
+      sw += w; se += w * p.e;
+      if (d2 < near) near = d2;
+    }
+    near = Math.sqrt(near);
+    if (!points.length || near > fade) continue;
+    values[c] = se / sw;
+    alpha[c] = near <= full ? 1 : 1 - (near - full) / (fade - full);
+  }
+  FIELD.values = values;
+  const cv = Object.assign(document.createElement("canvas"), { width: W * k, height: C.height * k });
+  const ctx = cv.getContext("2d");
+  const img = ctx.createImageData(W * k, C.height * k), d = img.data;
+  for (let y = 0; y < C.height * k; y++) for (let x = 0; x < W * k; x++) {
+    const i = y * W * k + x;
+    if (!FIELD.mask[i]) continue;
+    const c = Math.floor(y / k) * W + Math.floor(x / k);
+    if (isNaN(values[c])) continue;
+    const rgb = errRGB(values[c]);
+    d[i * 4] = rgb[0]; d[i * 4 + 1] = rgb[1]; d[i * 4 + 2] = rgb[2]; d[i * 4 + 3] = Math.round(225 * alpha[c]);
+  }
+  ctx.putImageData(img, 0, 0);
+  const blob = await new Promise((r) => cv.toBlob(r));
+  if (FIELD.url) URL.revokeObjectURL(FIELD.url);
+  FIELD.url = URL.createObjectURL(blob);
+  el.setAttribute("href", FIELD.url);
 }
 
 function applyZoom() {
@@ -110,19 +199,21 @@ async function drawMap(h) {
   const dots = $("#dots-g"), arrows = $("#arrows-g");
   dots.replaceChildren(); arrows.replaceChildren();
   const ink = css("--ink"), fcCol = srcColor(state.src);
+  const points = [];
 
   for (const [fid, st] of Object.entries(IDX.stations)) {
     if (!visible(fid)) continue;
     const o = data.obs[fid], f = fc && fc[fid];
     let err = null;
-    if (state.mode === "hour") err = o && f ? f[0] - o[0] : null;
+    if (state.mode === "hour") err = o && f && o[0] != null && f[0] != null ? f[0] - o[0] : null;
     else if (typical[fid] && typical[fid][0] >= 3) err = typical[fid][2] / typical[fid][0];
+    if (err != null && st.sea) points.push({ x: st.px, y: st.py, e: err });
     if (state.arrows && state.mode === "hour") {
       if (f) arrow(arrows, st.px, st.py, f[1], f[0], fcCol, 1.6 * scale, scale);
       if (o) arrow(arrows, st.px, st.py, o[1], o[0], ink, 1.1 * scale, scale);
     }
     const c = svg("circle", {
-      cx: st.px, cy: st.py, r: (st.water ? 3.6 : 2.9) * scale,
+      cx: st.px, cy: st.py, r: (st.sea ? 3.2 : 2.6) * scale,
       fill: err == null ? "#bdbdbd" : errColor(err), stroke: "#333", "stroke-width": 0.6 * scale,
       tabindex: 0, role: "button", "aria-label": st.name,
     }, dots);
@@ -133,6 +224,7 @@ async function drawMap(h) {
     c.addEventListener("click", () => selectStation(fid));
     c.addEventListener("keydown", (e) => { if (e.key === "Enter") selectStation(fid); });
   }
+  await drawField(points);
 }
 
 function windText(v, gustLabel) {
@@ -141,24 +233,26 @@ function windText(v, gustLabel) {
   return `${v[0].toFixed(1)} m/s ${compass(v[1]) ? "from " + compass(v[1]) : ""}${g}`;
 }
 
-function showTip(ev, fid, o, f, typ) {
-  const tip = $("#tip"), st = IDX.stations[fid];
-  let html = `<b>${st.name}</b>${st.water ? " · on the water" : ""}<br>`;
-  if (state.mode === "hour") {
-    html += `Measured: ${windText(o, "gusts")}<br>Forecast: ${windText(f, "gusts")}`;
-    if (o && f) {
-      const e = f[0] - o[0];
-      html += `<br><b>${Math.abs(e) < 0.05 ? "spot on" : `${Math.abs(e).toFixed(1)} m/s too ${e > 0 ? "strong" : "weak"}`}</b>`;
-    }
-  } else if (typ) {
-    html += `Last 2 weeks (${typ[0]} h): typically ${(typ[1] / typ[0]).toFixed(1)} m/s off, on average ${signed(typ[2] / typ[0])}`;
-  } else html += "Not enough data yet";
+function tipAt(ev, html) {
+  const tip = $("#tip");
   tip.innerHTML = html;
   const box = $(".wind-map").getBoundingClientRect();
   const x = ev.clientX - box.left, y = ev.clientY - box.top;
   tip.hidden = false;
-  tip.style.left = `${Math.min(x + 12, box.width - tip.offsetWidth - 4)}px`;
+  tip.style.left = `${Math.max(4, Math.min(x + 12, box.width - tip.offsetWidth - 4))}px`;
   tip.style.top = `${y + 14 + tip.offsetHeight > box.height ? y - tip.offsetHeight - 10 : y + 14}px`;
+}
+
+function showTip(ev, fid, o, f, typ) {
+  const st = IDX.stations[fid];
+  let html = `<b>${st.name}</b>${st.sea ? " · at sea" : st.lake ? " · lake" : ""}<br>`;
+  if (state.mode === "hour") {
+    html += `Measured: ${windText(o, "gusts")}<br>Forecast: ${windText(f, "gusts")}`;
+    if (o && f && o[0] != null && f[0] != null) html += `<br><b>${errWords(f[0] - o[0])}</b>`;
+  } else if (typ) {
+    html += `Last 2 weeks (${typ[0]} h): typically ${(typ[1] / typ[0]).toFixed(1)} m/s off, on average ${signed(typ[2] / typ[0])}`;
+  } else html += "Not enough data yet";
+  tipAt(ev, html);
 }
 
 // ------------------------------------------------------------------ hour view
@@ -186,9 +280,11 @@ async function draw() {
 }
 
 function errLegend() {
-  $("#err-legend").innerHTML = `<span class="label">${state.mode === "hour" ? "Forecast speed was" : "Typically"}</span>` +
-    ERR_COLORS.map((c, i) => `<span><i style="background:${c};border:1px solid #888"></i>${ERR_LABELS[i]}</span>`).join("") +
-    `<span><i style="background:#bdbdbd;border:1px solid #888"></i>no data</span>`;
+  const grad = ERR_STOPS.map(([e, c]) => `rgb(${c.join(",")}) ${((e + 4) / 8) * 100}%`).join(",");
+  $("#err-legend").innerHTML =
+    `<span class="label">${state.mode === "hour" ? "Forecast wind was" : "Forecast wind is typically"}</span>` +
+    `<span class="err-scale"><span class="bar" style="background:linear-gradient(90deg,${grad})"></span>` +
+    `<span class="ticks"><span>4 m/s too weak</span><span>2</span><span>about right</span><span>2</span><span>4 m/s too strong</span></span></span>`;
 }
 
 // ------------------------------------------------------------------ station panel
@@ -197,7 +293,7 @@ async function selectStation(fid) {
   state.station = fid;
   const st = IDX.stations[fid];
   $("#st-name").textContent = st.name;
-  $("#st-note").textContent = `Wind speed measured vs. forecast ${bucketLabel(C.buckets[state.b])}, last two weeks. ${st.water ? "Station on the water." : "Land station."}`;
+  $("#st-note").textContent = `Wind speed measured vs. forecast ${bucketLabel(C.buckets[state.b])}, last two weeks. ${st.sea ? "Sea station." : st.lake ? "Lake station." : "Land station."}`;
   $("#st-chart-wrap").hidden = false;
   const d = await fetch(`wind/st/${fid}.json`).then((r) => r.json());
   if (state.station !== fid) return;
@@ -375,12 +471,14 @@ async function main() {
     $("#updated").textContent = "No wind data yet: the first hourly run hasn't finished.";
     return;
   }
+  const q = new URLSearchParams(location.search);
+  if (ZOOMS[q.get("zoom")]) state.zoom = q.get("zoom");
   C = IDX.config;
   F = Object.fromEntries(C.fields.map((k, i) => [k, i]));
   const upd = new Date(IDX.updated);
-  const nWater = Object.values(IDX.stations).filter((s) => s.water).length;
+  const nSea = Object.values(IDX.stations).filter((s) => s.sea).length;
   $("#updated").textContent = `Last updated ${fmtDay.format(upd)} ${fmtHM.format(upd)} Finnish time · ` +
-    `${Object.keys(IDX.stations).length} stations, ${nWater} on the water · ${IDX.hours.length} hours in the last two weeks`;
+    `${Object.keys(IDX.stations).length} stations, ${nSea} at sea · ${IDX.hours.length} hours in the last two weeks`;
   if (!IDX.hours.length) return;
   state.i = IDX.hours.length - 1;
   // start with the source/age that has data for the latest hour
@@ -390,6 +488,7 @@ async function main() {
   state.b = firstB >= 0 ? firstB : 0;
   chartDefaults();
   setupMap();
+  await loadSea().catch(() => {});
   setupControls();
   applyZoom();
   errLegend();

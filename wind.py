@@ -16,7 +16,10 @@ import re
 import shutil
 
 import numpy as np
-from rasterio.warp import transform
+from PIL import Image
+from rasterio import features
+from rasterio.transform import from_bounds
+from rasterio.warp import Resampling, reproject, transform
 
 import raincheck as rc
 from raincheck import UTC, from_tag, http_get, iso, log, tag
@@ -31,7 +34,11 @@ BUCKETS = rc.BUCKETS
 THRESHOLDS = [8, 11, 14]      # mean wind (m/s) that counts as "windy" for hit/miss counts
 NEAR_MS = 2.0                 # forecast "about right" if within this many m/s
 DIR_MIN_MS = 3.0              # direction is only compared when both winds are at least this
-STATION_SETS = ["water", "all"]
+STATION_SETS = ["sea", "all"]
+SEA_SCALE = 2                 # sea mask is drawn at twice the rain grid resolution (~1.2 km)
+SEA_STATION_KM = 3.0          # a "sea" station is on water and within this distance of open sea
+LAND_URLS = ["https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_land.geojson",
+             "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_minor_islands.geojson"]
 OBS_BBOX = "19,59.4,32,70.2"
 STATION_REFRESH_DAYS = 7
 
@@ -110,6 +117,44 @@ def ensure_stations(now):
     save_stations(st)
     log(f"wind stations: {len(st)}")
     return st
+
+
+def sea_mask():
+    """Boolean sea mask on the (SEA_SCALE x finer) map grid; lakes count as land."""
+    path = WIND / "sea.png"
+    if not path.exists():
+        # rasterise Natural Earth land in lon/lat first (its polygons span whole continents),
+        # then reproject onto the map grid
+        lon0, lat0, lon1, lat1, step = 15.0, 57.5, 35.0, 71.5, 0.005
+        w, h = int((lon1 - lon0) / step), int((lat1 - lat0) / step)
+        ll = from_bounds(lon0, lat0, lon1, lat1, w, h)
+        land = np.zeros((h, w), np.uint8)
+        for url in LAND_URLS:
+            gj = json.loads(http_get(url, timeout=300))
+            shapes = [(f["geometry"], 1) for f in gj["features"] if f["geometry"]]
+            land |= features.rasterize(shapes, out_shape=(h, w), transform=ll, dtype=np.uint8)
+        W, H = rc.WIDTH * SEA_SCALE, rc.HEIGHT * SEA_SCALE
+        dst = np.zeros((H, W), np.uint8)
+        reproject(land, dst, src_transform=ll, src_crs="EPSG:4326",
+                  dst_transform=from_bounds(*rc.BOUNDS, W, H), dst_crs=rc.CRS,
+                  resampling=Resampling.nearest)
+        WIND.mkdir(parents=True, exist_ok=True)
+        Image.fromarray(np.where(dst == 0, 255, 0).astype(np.uint8)).save(path, optimize=True)
+        log("built sea mask")
+    return np.asarray(Image.open(path)) > 127
+
+
+def station_sets(stations, sea):
+    r = int(round(SEA_STATION_KM / (rc.PIXEL_KM / SEA_SCALE)))
+    H, W = sea.shape
+
+    def at_sea(st):
+        if not st.get("water"):
+            return False
+        x, y = int(st["px"] * SEA_SCALE), int(st["py"] * SEA_SCALE)
+        return bool(sea[max(y - r, 0):min(y + r + 1, H), max(x - r, 0):min(x + r + 1, W)].any())
+
+    return {"all": sorted(stations), "sea": sorted(i for i, s in stations.items() if at_sea(s))}
 
 
 # ---------------------------------------------------------------------------- forecasts
@@ -237,11 +282,14 @@ def dir_diff(a, b):
 
 def score(obs, fc, station_ids):
     v = dict.fromkeys(FIELDS, 0.0)
+    nan = lambda xs: [np.nan if x is None else float(x) for x in xs]
     for fid in station_ids:
         if fid not in obs or fid not in fc:
             continue
-        ow, od, og = obs[fid]
-        fw, fd, fg = fc[fid]
+        ow, od, og = nan(obs[fid])
+        fw, fd, fg = nan(fc[fid])
+        if np.isnan(ow) or np.isnan(fw):
+            continue
         e = fw - ow
         v["n"] += 1
         v["abs"] += abs(e)
@@ -282,11 +330,24 @@ def r1(x):
     return None if x is None or np.isnan(x) else round(float(x), 1)
 
 
-def verify(now, stations):
+def rescore(metas, sets):
+    """Score kept hours again for station sets they were not scored for (e.g. a new set)."""
+    for p in sorted((SITE / "h").glob("*.json")):
+        m = metas.get(p.stem)
+        if not m or all(v is None or set(sets) <= set(v) for vs in m["s"].values() for v in vs):
+            continue
+        h = json.loads(p.read_text())
+        for s, vs in m["s"].items():
+            for b, v in enumerate(vs):
+                if v is not None:
+                    fc = h["fc"][s][b]
+                    vs[b] = {k: score(h["obs"], fc, ids) for k, ids in sets.items()}
+
+
+def verify(now, stations, sets):
     metas = load_metas()
     cache = {}
     latest = rc.floor_hour(now - dt.timedelta(minutes=15))
-    sets = {"all": sorted(stations), "water": sorted(i for i, s in stations.items() if s.get("water"))}
 
     todo = []
     for i in range(rc.LOOKBACK_HOURS - 1, -1, -1):
@@ -300,6 +361,8 @@ def verify(now, stations):
             continue
         todo.append((t, fcs, leads))
     if not todo:
+        rescore(metas, sets)
+        save_metas(metas)
         return metas
 
     try:
@@ -331,13 +394,14 @@ def verify(now, stations):
         (SITE / "h").mkdir(parents=True, exist_ok=True)
         (SITE / "h" / f"{tag(t)}.json").write_text(json.dumps(hour, separators=(",", ":")))
         log(f"{iso(t)}: wind verified at {len(obs)} stations")
+    rescore(metas, sets)
     save_metas(metas)
     return metas
 
 
 # ---------------------------------------------------------------------------- site files
 
-def write_site(now, metas, stations):
+def write_site(now, metas, stations, sets):
     cutoff = now - dt.timedelta(days=rc.KEEP_IMAGE_DAYS)
     for p in (SITE / "h").glob("*.json"):
         if from_tag(p.stem) < cutoff:
@@ -346,10 +410,13 @@ def write_site(now, metas, stations):
     keys = [p.stem for p in hour_files]
 
     config = {"sources": SOURCES, "buckets": BUCKETS, "thresholds": THRESHOLDS, "fields": FIELDS,
-              "near_ms": NEAR_MS, "dir_min_ms": DIR_MIN_MS, "width": rc.WIDTH, "height": rc.HEIGHT}
-    st = {i: {"name": s["name"], "px": s["px"], "py": s["py"], "water": bool(s.get("water"))}
-          for i, s in stations.items()}
+              "near_ms": NEAR_MS, "dir_min_ms": DIR_MIN_MS, "width": rc.WIDTH, "height": rc.HEIGHT,
+              "sea_scale": SEA_SCALE, "pixel_km": rc.PIXEL_KM}
+    sea_ids = set(sets["sea"])
+    st = {i: {"name": s["name"], "px": s["px"], "py": s["py"], "sea": i in sea_ids,
+              "lake": bool(s.get("water")) and i not in sea_ids} for i, s in stations.items()}
     SITE.mkdir(parents=True, exist_ok=True)
+    shutil.copy(WIND / "sea.png", SITE / "sea.png")
 
     # long-term totals
     periods = {"7d": now - dt.timedelta(days=7), "30d": now - dt.timedelta(days=30),
@@ -422,6 +489,7 @@ def update(now):
             collect(source, stations, now)
         except Exception as e:
             log(f"{source} wind forecast failed: {e}")
-    metas = verify(now, stations)
+    sets = station_sets(stations, sea_mask())
+    metas = verify(now, stations, sets)
     prune(now)
-    write_site(now, metas, stations)
+    write_site(now, metas, stations, sets)
