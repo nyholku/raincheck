@@ -3,6 +3,8 @@
 
 const $ = (s) => document.querySelector(s);
 const RAIN = ["#ffffff", "#c6dbef", "#9ecae1", "#6baed6", "#4292c6", "#2171b5", "#08519c", "#08306b", "#041a3d"];
+// stronger colours for rain drawn on top of the grey satellite picture
+const RAIN_SAT = ["#ffffff", "#8fe3ff", "#4cc6ff", "#1ea2ff", "#1670f0", "#3a4fd8", "#6a2fc0", "#9a159e", "#c8007a"];
 const CAT = { dry: "#ffffff", hit: "#009E73", miss: "#0072B2", fa: "#E69F00", nodata: "#e2e2e2" };
 const PERIODS = { "7d": "Last 7 days", "30d": "Last 30 days", all: "Since the start" };
 const HEL = (opts) => new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Helsinki", ...opts });
@@ -11,7 +13,10 @@ const fmtHM = HEL({ hour: "2-digit", minute: "2-digit" });
 const fmtShort = HEL({ weekday: "short", hour: "2-digit" });
 
 let IDX, SUM, C;
-const state = { i: 0, b: 0, thr: null, tol: 0, period: "7d" };
+const state = { i: 0, b: 0, thr: null, tol: 0, period: "7d", sat: false };
+try { state.sat = localStorage.getItem("raincheck.sat") === "1"; } catch (e) { /* storage blocked */ }
+const urlSat = new URLSearchParams(location.search).get("sat");
+if (urlSat !== null) state.sat = urlSat === "1";
 const classCache = new Map();
 let hoursChart, leadChart, timer = null, drawToken = 0;
 
@@ -123,20 +128,44 @@ function categorise(fc, obs) {
 // ------------------------------------------------------------------ drawing
 
 const rgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
-const RAIN_RGB = RAIN.map(rgb), NODATA_RGB = rgb(CAT.nodata);
+const RAIN_RGB = RAIN.map(rgb), RAIN_SAT_RGB = RAIN_SAT.map(rgb), NODATA_RGB = rgb(CAT.nodata);
 const CAT_RGB = [CAT.dry, CAT.hit, CAT.miss, CAT.fa, CAT.nodata].map(rgb);
 
-function paint(canvas, values, colorOf) {
+// colorOf returns [r,g,b] or [r,g,b,alpha]; with a satellite picture, values are drawn over it
+function paint(canvas, values, colorOf, under = null) {
   canvas.width = C.width; canvas.height = C.height;
   const ctx = canvas.getContext("2d");
-  const img = ctx.createImageData(C.width, C.height);
+  let img;
+  if (under) {
+    ctx.drawImage(under, 0, 0, C.width, C.height);
+    img = ctx.getImageData(0, 0, C.width, C.height);
+  } else {
+    img = ctx.createImageData(C.width, C.height);
+  }
+  const d = img.data;
   for (let i = 0; i < values.length; i++) {
     const c = colorOf(values[i]);
-    img.data[i * 4] = c[0]; img.data[i * 4 + 1] = c[1]; img.data[i * 4 + 2] = c[2]; img.data[i * 4 + 3] = 255;
+    const a = c.length > 3 ? c[3] : 1, j = i * 4;
+    if (a === 0) continue;
+    d[j] = d[j] * (1 - a) + c[0] * a; d[j + 1] = d[j + 1] * (1 - a) + c[1] * a;
+    d[j + 2] = d[j + 2] * (1 - a) + c[2] * a; d[j + 3] = 255;
   }
   ctx.putImageData(img, 0, 0);
 }
 const rainColor = (k) => (k === C.nodata ? NODATA_RGB : RAIN_RGB[Math.min(k, RAIN_RGB.length - 1)]);
+const SHADE = [0, 0, 0, 0.35], CLEAR = [0, 0, 0, 0];
+const rainOverSat = (k) => (k === C.nodata ? SHADE : k === 0 ? CLEAR : RAIN_SAT_RGB[Math.min(k, RAIN_SAT_RGB.length - 1)]);
+
+const satCache = new Map();
+function satImage(h) {
+  if (!satCache.has(h.t)) {
+    const img = new Image();
+    img.src = `h/${h.t}/sat.jpg`;
+    satCache.set(h.t, img.decode().then(() => img).catch(() => null));
+    if (satCache.size > 40) satCache.delete(satCache.keys().next().value);
+  }
+  return satCache.get(h.t);
+}
 const blank = (canvas) => paint(canvas, new Uint8Array(C.width * C.height), () => NODATA_RGB);
 
 async function draw() {
@@ -149,13 +178,22 @@ async function draw() {
   const lead = h.leads[state.b];
   const obs = await classesOf(`h/${h.t}/obs.png`);
   const fc = lead ? await classesOf(`h/${h.t}/b${state.b}.png`) : null;
+  const sat = state.sat && h.sat ? await satImage(h) : null;
   if (token !== drawToken) return;
 
-  paint($("#c-obs"), obs, rainColor);
+  const rain = sat ? rainOverSat : rainColor;
+  document.querySelectorAll(".map .bg").forEach((el, i) => {
+    const src = sat && (i === 0 || (i === 1 && fc)) ? "map-dark.svg" : "map.svg";
+    if (!el.src.endsWith(src)) el.src = src;
+  });
+  $("#obs-caption").textContent = sat
+    ? `What actually fell (radar), clouds at ${fmtHM.format(new Date(h.sat))}`
+    : state.sat ? "What actually fell (radar) · no satellite picture for this hour" : "What actually fell (radar)";
+  paint($("#c-obs"), obs, rain, sat);
   if (fc) {
     const origin = new Date(h.origins[state.b]);
     $("#fc-caption").textContent = `Forecast from the ${fmtHM.format(origin)} model run, ${lead} h before`;
-    paint($("#c-fc"), fc, rainColor);
+    paint($("#c-fc"), fc, rain, sat);
     const { cat, s } = categorise(fc, obs);
     paint($("#c-cat"), cat, (c) => CAT_RGB[c]);
     const noRain = isNaN(s.csi);
@@ -308,14 +346,24 @@ function setupControls() {
   const tol = $("#tol");
   tol.innerHTML = C.tolerances_km.map((t) => `<option value="${t}">${t ? `${t} km` : "none (exact)"}</option>`).join("");
   tol.onchange = () => { state.tol = +tol.value; refresh(); };
+  const sat = $("#sat");
+  sat.checked = state.sat;
+  sat.onchange = () => {
+    state.sat = sat.checked;
+    try { localStorage.setItem("raincheck.sat", state.sat ? "1" : "0"); } catch (e) { /* storage blocked */ }
+    rainLegend(); draw();
+  };
 }
 
 function refresh() { buildHoursChart(); buildLeadChart(); draw(); }
 
 function rainLegend() {
   const labels = ["", ...C.edges.map(String)];
+  const colors = (state.sat ? RAIN_SAT : RAIN).slice(1);
+  $("#rain-legend .ramp")?.remove();
   $("#rain-legend").insertAdjacentHTML("beforeend",
-    `<span class="ramp">${RAIN.slice(1).map((c, i) => `<span><i style="background:${c}"></i>${labels[i + 1]}</span>`).join("")}</span>`);
+    `<span class="ramp">${colors.map((c, i) => `<span><i style="background:${c}"></i>${labels[i + 1]}</span>`).join("")}</span>`);
+  $("#sat-legend").hidden = !state.sat;
 }
 
 async function main() {

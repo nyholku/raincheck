@@ -37,6 +37,7 @@
       <label class="label" for="tol">Position tolerance</label>
       <select id="tol"></select>
     </div>
+    <label class="check"><input type="checkbox" id="sat"> Satellite clouds</label>
   </div>
 </section>
 
@@ -51,7 +52,7 @@
 
 <section class="maps">
   <figure>
-    <figcaption>What actually fell (radar)</figcaption>
+    <figcaption id="obs-caption">What actually fell (radar)</figcaption>
     <div class="map"><canvas id="c-obs"></canvas><img class="bg" src="map.svg" alt=""></div>
   </figure>
   <figure>
@@ -72,6 +73,10 @@
     <span><i style="background:var(--fa)"></i>forecast rain, stayed dry</span>
     <span><i style="background:#fff;border:1px solid #bbb"></i>dry, correctly</span>
     <span><i style="background:var(--nodata)"></i>outside radar range</span>
+  </div>
+  <div class="legend" id="sat-legend" hidden>
+    <span><i class="sat-ramp"></i>clouds: white = high and cold, grey = low, dark = clear sky ·
+      Satellite: © EUMETSAT, Meteosat infrared, corrected for parallax</span>
   </div>
 </section>
 
@@ -103,8 +108,12 @@
       forecast 5 km off counts both as a miss and as a false alarm.</li>
     <li><b>Forecast made … ahead</b> is counted from the model's start time. FMI publishes each run about
       2–3 hours after its start, so the youngest forecasts were never actually available that early.</li>
+    <li><b>Satellite clouds</b> are the Meteosat infrared picture from the middle of the hour. Seen from
+      the equator, a high cloud over Finland appears 20–40 km too far north, so each cloud is moved back to its
+      true position using EUMETSAT's cloud-top-height product. Lapland is seen at a very low angle, so the
+      picture there is blurrier.</li>
     <li>Forecast: FMI MEPS weather model, a new run every 3 hours. Observed: FMI radar composite,
-      1-hour rain. Data: Finnish Meteorological Institute open data, CC BY 4.0. Updated hourly.</li>
+      1-hour rain. Data: Finnish Meteorological Institute open data, CC BY 4.0; satellite © EUMETSAT. Updated hourly.</li>
   </ul>
 </section>
 

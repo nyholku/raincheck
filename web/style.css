@@ -54,6 +54,9 @@ h2 { font-size: 18px; margin: 18px 0 8px; }
 .hour-row { align-items: center; gap: 8px; }
 .hour-row input { flex: 1; min-width: 140px; accent-color: var(--accent); }
 .field { display: grid; gap: 4px; }
+.check { display: inline-flex; align-items: center; gap: 6px; padding-bottom: 6px; cursor: pointer; }
+.check input { width: 16px; height: 16px; accent-color: var(--accent); margin: 0; }
+.legend .sat-ramp { width: 44px; background: linear-gradient(90deg, #282828, #8a8a8a, #fff); border: 1px solid #999; }
 .label { font-size: 12px; color: var(--muted); }
 button, select {
   font: inherit; color: var(--fg); background: var(--card);

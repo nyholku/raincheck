@@ -218,6 +218,118 @@ def fetch_obs(t):
     return mm
 
 
+# ---------------------------------------------------------------------------- satellite
+
+SAT_WMS = "https://view.eumetsat.int/geoserver/ows"
+SAT_LAYER = "mtg_fd:ir105_hrfi"   # Meteosat Third Generation, infrared 10.5 µm, every 10 min
+CTH_LAYER = "msg_fes:cth"         # Meteosat cloud top height, every 15 min, used for parallax
+# The cloud top height layer is only available as a coloured picture; its colour scale is read
+# from the layer's legend image, where the 320 m and 16000 m ticks sit at these x positions.
+CTH_LEGEND_ROW, CTH_LEGEND_X0, CTH_LEGEND_X1 = 25, 150, 628
+CTH_TICK_320, CTH_TICK_16000 = 148.5, 634.5
+SAT_ORBIT_KM = 35786.0 + 6371.0   # geostationary satellite at 0° longitude, from Earth centre
+EARTH_KM = 6371.0
+_sat_geometry = None
+
+
+def sat_wms(layer, t, fmt="image/geotiff"):
+    return http_get(SAT_WMS, {
+        "service": "WMS", "version": "1.3.0", "request": "GetMap", "layers": layer, "styles": "",
+        "crs": CRS, "bbox": ",".join(map(str, BOUNDS)), "width": WIDTH, "height": HEIGHT,
+        "format": fmt, "time": iso(t),
+    })
+
+
+def cloud_top_height_km(t):
+    """Cloud top height (km) per grid pixel, 0 where the sky is clear."""
+    legend_path = DATA / "cth_legend.png"
+    if not legend_path.exists():
+        DATA.mkdir(parents=True, exist_ok=True)
+        legend_path.write_bytes(http_get(SAT_WMS, {
+            "service": "WMS", "version": "1.3.0", "request": "GetLegendGraphic",
+            "format": "image/png", "width": 640, "height": 80, "layer": CTH_LAYER}))
+    legend = np.asarray(Image.open(legend_path).convert("RGBA"))[..., :3].astype(int)
+    xs = np.arange(CTH_LEGEND_X0, CTH_LEGEND_X1)
+    colors = legend[CTH_LEGEND_ROW, xs]
+    heights = 0.32 + (xs - CTH_TICK_320) * (16.0 - 0.32) / (CTH_TICK_16000 - CTH_TICK_320)
+
+    with rasterio.MemoryFile(sat_wms(CTH_LAYER, t)) as mf, mf.open() as src:
+        rgb = np.moveaxis(src.read(), 0, -1).reshape(-1, 3).astype(int)
+    uniq, inv = np.unique(rgb, axis=0, return_inverse=True)
+    dist = ((uniq[:, None, :] - colors[None, :, :]) ** 2).sum(-1)
+    h = heights[dist.argmin(1)]
+    h[(uniq == 255).all(1)] = 0.0   # white = no cloud
+    return h[inv.ravel()].reshape(HEIGHT, WIDTH)
+
+
+def sat_geometry():
+    """Grid pixel centres as 3-D points on a spherical Earth (km), computed once."""
+    global _sat_geometry
+    if _sat_geometry is None:
+        xs = BOUNDS[0] + (np.arange(WIDTH) + 0.5) * (BOUNDS[2] - BOUNDS[0]) / WIDTH
+        ys = BOUNDS[3] - (np.arange(HEIGHT) + 0.5) * (BOUNDS[3] - BOUNDS[1]) / HEIGHT
+        X, Y = np.meshgrid(xs, ys)
+        lon, lat = transform(CRS, "EPSG:4326", X.ravel(), Y.ravel())
+        lon, lat = np.radians(lon), np.radians(lat)
+        P = EARTH_KM * np.stack([np.cos(lat) * np.cos(lon), np.cos(lat) * np.sin(lon), np.sin(lat)], 1)
+        _sat_geometry = P
+    return _sat_geometry
+
+
+def parallax_correct(img, h_km):
+    """Move each cloud pixel to where the cloud really is.
+
+    The satellite sees a cloud top along its line of sight, so on the map the cloud
+    appears where that line meets the ground: seen from the equator, a 10 km high
+    cloud over Finland shows up ~35 km too far north. For each pixel we find where
+    the line of sight crosses the cloud-top height and put the pixel below that point.
+    Higher clouds are drawn last (they hide what is below); uncovered gaps are filled
+    from the nearest pixel.
+    """
+    P = sat_geometry()
+    S = np.array([SAT_ORBIT_KM, 0.0, 0.0])
+    D = P - S
+    h = h_km.ravel()
+    a = (D * D).sum(1)
+    b = 2 * (D @ S)
+    c = S @ S - (EARTH_KM + h) ** 2
+    t = (-b - np.sqrt(np.maximum(b * b - 4 * a * c, 0))) / (2 * a)   # first crossing from the satellite
+    C = S + t[:, None] * D
+    lat = np.degrees(np.arcsin(C[:, 2] / np.linalg.norm(C, axis=1)))
+    lon = np.degrees(np.arctan2(C[:, 1], C[:, 0]))
+    x, y = transform("EPSG:4326", CRS, lon, lat)
+    col = np.floor((np.asarray(x) - BOUNDS[0]) / (BOUNDS[2] - BOUNDS[0]) * WIDTH).astype(int)
+    row = np.floor((BOUNDS[3] - np.asarray(y)) / (BOUNDS[3] - BOUNDS[1]) * HEIGHT).astype(int)
+    inside = (col >= 0) & (col < WIDTH) & (row >= 0) & (row < HEIGHT)
+
+    src = np.flatnonzero(inside)
+    src = src[np.argsort(h[src], kind="stable")]           # low clouds first, high ones last
+    dst = row[src] * WIDTH + col[src]
+    last = len(dst) - 1 - np.unique(dst[::-1], return_index=True)[1]   # keep the highest per target
+    out = np.full(HEIGHT * WIDTH, -1, np.int32)
+    out[dst[last]] = img.ravel()[src[last]]
+    out = out.reshape(HEIGHT, WIDTH)
+    holes = out < 0
+    if holes.any():
+        iy, ix = ndimage.distance_transform_edt(holes, return_distances=False, return_indices=True)
+        out = out[iy, ix]
+    return out.astype(img.dtype)
+
+
+def save_satellite(t, path):
+    """Parallax-corrected infrared picture from the middle of the hour ending at t."""
+    when = t - dt.timedelta(minutes=30)
+    with rasterio.MemoryFile(sat_wms(SAT_LAYER, when)) as mf, mf.open() as src:
+        counts = src.read(1)
+    if (counts > 0).mean() < 0.5:
+        raise RuntimeError("satellite image not available")
+    corrected = parallax_correct(counts, cloud_top_height_km(when))
+    # counts rise with temperature: warm ground dark grey, cold (high) cloud tops white
+    g = np.clip((236.0 - corrected) / (236.0 - 150.0), 0, 1)
+    Image.fromarray((40 + g * 215).astype(np.uint8)).save(path, quality=82, optimize=True)
+    return iso(when)
+
+
 # ---------------------------------------------------------------------------- scoring
 
 def classify(mm):
@@ -306,7 +418,8 @@ def verify(now):
         obs_cls = classify(obs)
         hour_dir = SITE / "h" / key
         save_classes(obs_cls, hour_dir / "obs.png")
-        meta = {"leads": leads, "origins": [], "obs_mm": round(float(np.nanmean(obs)), 3), "s": []}
+        meta = {"leads": leads, "origins": [], "obs_mm": round(float(np.nanmean(obs)), 3), "s": [],
+                "sat": old.get("sat") if old else None}
         for b, lead in enumerate(leads):
             if lead is None:
                 meta["origins"].append(None)
@@ -320,6 +433,17 @@ def verify(now):
             meta["s"].append(scores(fc_cls, obs_cls))
         metas[key] = meta
         log(f"{iso(t)}: verified, forecast ages {[l for l in leads if l]} h")
+
+    # satellite picture for each verified hour (also fills in hours where it failed before)
+    for i in range(LOOKBACK_HOURS):
+        t = latest - dt.timedelta(hours=i)
+        meta = metas.get(tag(t))
+        hour_dir = SITE / "h" / tag(t)
+        if meta and not meta.get("sat") and (hour_dir / "obs.png").exists():
+            try:
+                meta["sat"] = save_satellite(t, hour_dir / "sat.jpg")
+            except Exception as e:
+                log(f"{iso(t)}: satellite: {e}")
     save_metas(metas)
     return metas
 
@@ -371,9 +495,11 @@ def write_site_json(now, metas):
 
 
 def write_map_svg():
-    """Background map (country borders, a few towns) in grid pixel coordinates."""
-    path = SITE / "map.svg"
-    if path.exists():
+    """Map overlay (country borders, a few towns) in grid pixel coordinates.
+
+    map.svg is for the normal light maps, map-dark.svg for maps over the satellite picture.
+    """
+    if (SITE / "map-dark.svg").exists():
         return
     res_x = (BOUNDS[2] - BOUNDS[0]) / WIDTH
     res_y = (BOUNDS[3] - BOUNDS[1]) / HEIGHT
@@ -405,12 +531,14 @@ def write_map_svg():
         a, b = px(x, y)
         marks.append(f'<circle cx="{a:.1f}" cy="{b:.1f}" r="1.6"/>'
                      f'<text x="{a + 3:.1f}" y="{b + 3:.1f}">{name}</text>')
-    path.write_text(
-        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {WIDTH} {HEIGHT}">'
-        f'<path d="{"".join(paths)}" fill="none" stroke="#444" stroke-width="0.6" '
-        f'stroke-linejoin="round"/>'
-        f'<g fill="#222" font-family="system-ui,sans-serif" font-size="9" '
-        f'paint-order="stroke" stroke="#fff" stroke-width="2">{"".join(marks)}</g></svg>')
+    for name, line, text, halo in (("map.svg", "#444", "#222", "#fff"),
+                                   ("map-dark.svg", "#f2f2f2", "#fff", "#000")):
+        (SITE / name).write_text(
+            f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {WIDTH} {HEIGHT}">'
+            f'<path d="{"".join(paths)}" fill="none" stroke="{line}" stroke-width="0.6" '
+            f'stroke-opacity="0.85" stroke-linejoin="round"/>'
+            f'<g fill="{text}" font-family="system-ui,sans-serif" font-size="9" '
+            f'paint-order="stroke" stroke="{halo}" stroke-width="2">{"".join(marks)}</g></svg>')
 
 
 # ---------------------------------------------------------------------------- commands
