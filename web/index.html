@@ -39,6 +39,7 @@
       <select id="tol"></select>
     </div>
     <label class="check"><input type="checkbox" id="sat"> Satellite clouds</label>
+    <label class="check"><input type="checkbox" id="wind"> Wind arrows</label>
   </div>
 </section>
 
@@ -54,7 +55,8 @@
 <section class="maps">
   <figure>
     <figcaption id="obs-caption">What actually fell (radar)</figcaption>
-    <div class="map"><canvas id="c-obs"></canvas><img class="bg" src="map.svg" alt=""></div>
+    <div class="map"><canvas id="c-obs"></canvas><img class="bg" src="map.svg" alt="">
+      <svg class="overlay" id="obs-wind" viewBox="0 0 425 673" aria-hidden="true"></svg></div>
   </figure>
   <figure>
     <figcaption id="fc-caption">Forecast</figcaption>
@@ -74,6 +76,10 @@
     <span><i style="background:var(--fa)"></i>forecast rain, stayed dry</span>
     <span><i style="background:#fff;border:1px solid #bbb"></i>dry, correctly</span>
     <span><i style="background:var(--nodata)"></i>outside radar range</span>
+  </div>
+  <div class="legend" id="wind-legend" hidden>
+    <span><i class="arrow-key" style="background:var(--ink)"></i>wind measured at FMI stations at the end of the hour;
+      arrows point where it blows to, longer = stronger. Clouds higher up often move faster and turned a little clockwise.</span>
   </div>
   <div class="legend" id="sat-legend" hidden>
     <span><i class="sat-ramp"></i>clouds: white = high and cold, grey = low, dark = clear sky ·

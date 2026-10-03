@@ -13,10 +13,14 @@ const fmtHM = HEL({ hour: "2-digit", minute: "2-digit" });
 const fmtShort = HEL({ weekday: "short", hour: "2-digit" });
 
 let IDX, SUM, C;
-const state = { i: 0, b: 0, thr: null, tol: 0, period: "7d", sat: false };
-try { state.sat = localStorage.getItem("raincheck.sat") === "1"; } catch (e) { /* storage blocked */ }
-const urlSat = new URLSearchParams(location.search).get("sat");
-if (urlSat !== null) state.sat = urlSat === "1";
+const state = { i: 0, b: 0, thr: null, tol: 0, period: "7d", sat: false, wind: false };
+try {
+  state.sat = localStorage.getItem("raincheck.sat") === "1";
+  state.wind = localStorage.getItem("raincheck.wind") === "1";
+} catch (e) { /* storage blocked */ }
+const urlParams = new URLSearchParams(location.search);
+if (urlParams.has("sat")) state.sat = urlParams.get("sat") === "1";
+if (urlParams.has("wind")) state.wind = urlParams.get("wind") === "1";
 const classCache = new Map();
 let hoursChart, leadChart, timer = null, drawToken = 0;
 
@@ -179,16 +183,21 @@ async function draw() {
   const obs = await classesOf(`h/${h.t}/obs.png`);
   const fc = lead ? await classesOf(`h/${h.t}/b${state.b}.png`) : null;
   const sat = state.sat && h.sat ? await satImage(h) : null;
+  const wind = state.wind ? await windAt(h.t) : null;
   if (token !== drawToken) return;
+  drawWind(wind, !!sat);
 
   const rain = sat ? rainOverSat : rainColor;
   document.querySelectorAll(".map .bg").forEach((el, i) => {
     const src = sat && (i === 0 || (i === 1 && fc)) ? "map-dark.svg" : "map.svg";
     if (!el.src.endsWith(src)) el.src = src;
   });
-  $("#obs-caption").textContent = sat
-    ? `What actually fell (radar), clouds at ${fmtHM.format(new Date(h.sat))}`
-    : state.sat ? "What actually fell (radar) · no satellite picture for this hour" : "What actually fell (radar)";
+  const extras = [];
+  if (sat) extras.push(`clouds at ${fmtHM.format(new Date(h.sat))}`);
+  else if (state.sat) extras.push("no satellite picture for this hour");
+  if (wind) extras.push(`wind at ${fmtHM.format(end)}`);
+  else if (state.wind) extras.push("no wind data for this hour");
+  $("#obs-caption").textContent = `What actually fell (radar)${extras.length ? ", " + extras.join(", ") : ""}`;
   paint($("#c-obs"), obs, rain, sat);
   if (fc) {
     const origin = new Date(h.origins[state.b]);
@@ -353,9 +362,60 @@ function setupControls() {
     try { localStorage.setItem("raincheck.sat", state.sat ? "1" : "0"); } catch (e) { /* storage blocked */ }
     rainLegend(); draw();
   };
+  const wind = $("#wind");
+  wind.checked = state.wind;
+  wind.onchange = () => {
+    state.wind = wind.checked;
+    try { localStorage.setItem("raincheck.wind", state.wind ? "1" : "0"); } catch (e) { /* storage blocked */ }
+    $("#wind-legend").hidden = !state.wind;
+    draw();
+  };
+  $("#wind-legend").hidden = !state.wind;
 }
 
 function refresh() { buildHoursChart(); buildLeadChart(); draw(); }
+
+// ------------------------------------------------------------------ measured wind arrows (from the wind tab's data)
+
+let windStations = null;
+const windHours = new Map();
+
+async function windAt(t) {
+  try {
+    if (!windStations) windStations = fetch("wind/index.json").then((r) => r.json()).then((d) => d.stations);
+    const stations = await windStations;
+    if (!windHours.has(t)) {
+      windHours.set(t, fetch(`wind/h/${t}.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null));
+      if (windHours.size > 60) windHours.delete(windHours.keys().next().value);
+    }
+    const h = await windHours.get(t);
+    return h ? { stations, obs: h.obs } : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+// arrows point where the wind blows to; length grows with speed
+function drawWind(wind, dark) {
+  const svg = $("#obs-wind");
+  svg.replaceChildren();
+  if (!wind) return;
+  const ink = dark ? "#ffffff" : "#1d1d1f", halo = dark ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.85)";
+  let paths = "";
+  for (const [fid, st] of Object.entries(wind.stations)) {
+    const o = wind.obs[fid];
+    if (!o || o[0] == null || o[1] == null || o[0] < 0.5) continue;
+    const len = Math.min(o[0], 20) * 1.6, a = ((o[1] + 180) * Math.PI) / 180;
+    const x1 = st.px, y1 = st.py, x2 = x1 + Math.sin(a) * len, y2 = y1 - Math.cos(a) * len;
+    const back = Math.atan2(y1 - y2, x1 - x2), hs = Math.max(len * 0.32, 2.4);
+    const p1 = `${x2 + hs * Math.cos(back + 0.45)},${y2 + hs * Math.sin(back + 0.45)}`;
+    const p2 = `${x2 + hs * Math.cos(back - 0.45)},${y2 + hs * Math.sin(back - 0.45)}`;
+    paths += `M${x1},${y1}L${x2},${y2}M${p1}L${x2},${y2}L${p2}`;
+  }
+  svg.innerHTML =
+    `<path d="${paths}" stroke="${halo}" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>` +
+    `<path d="${paths}" stroke="${ink}" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
+}
 
 function rainLegend() {
   const labels = ["", ...C.edges.map(String)];
