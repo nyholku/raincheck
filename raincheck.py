@@ -157,12 +157,7 @@ def fetch_run(origin, url):
     return len(valid)
 
 
-def collect():
-    try:
-        runs = available_runs()
-    except Exception as e:
-        log(f"forecast list unavailable: {e}")
-        return
+def collect(runs):
     for origin in sorted(runs):
         if fc_path(origin).exists():
             continue
@@ -545,7 +540,12 @@ def write_map_svg():
 
 def cmd_update():
     now = dt.datetime.now(UTC)
-    collect()
+    try:
+        runs = available_runs()
+    except Exception as e:
+        log(f"forecast list unavailable: {e}")
+        runs = {}
+    collect(runs)
     metas = verify(now)
     prune(now, metas)
     write_site_json(now, metas)
@@ -553,6 +553,12 @@ def cmd_update():
         write_map_svg()
     except Exception as e:
         log(f"map background failed (retried next run): {e}")
+
+    import wind  # the wind part must never stop the rain part from publishing
+    try:
+        wind.update(now)
+    except Exception as e:
+        log(f"wind update failed: {e!r}")
 
 
 def cmd_build_site(out):

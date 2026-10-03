@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Raincheck · Wind</title>
+<meta name="description" content="How well did the wind forecasts for Finland come true? Hour by hour, forecast vs. weather stations.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path d='M2 5h8a2 2 0 1 0-2-2M2 9h11a2 2 0 1 1-2 2M2 7h6' fill='none' stroke='%232a4d9b' stroke-width='1.6' stroke-linecap='round'/></svg>">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav class="tabs"><a href="./">Rain</a><a href="wind.html" aria-current="page">Wind</a></nav>
+<header>
+  <h1>Raincheck · Wind</h1>
+  <p class="lede">How well did the wind forecasts come true? Each hour the forecasts are compared with what
+    FMI's weather stations measured, including the lighthouse, island and lake stations used for boating.</p>
+  <p class="muted" id="updated">Loading…</p>
+</header>
+
+<section class="controls" aria-label="Choose what to show">
+  <div class="row hour-row">
+    <button id="prev" aria-label="Previous hour">◀</button>
+    <button id="play" aria-label="Play">▶</button>
+    <button id="next" aria-label="Next hour">▶</button>
+    <input id="hour" type="range" min="0" value="0" aria-label="Hour">
+    <button id="latest">Latest</button>
+  </div>
+  <div class="row">
+    <div class="field"><span class="label">Forecast</span><div class="seg" id="source" role="radiogroup"></div></div>
+    <div class="field"><span class="label">Forecast made</span><div class="seg" id="bucket" role="radiogroup"></div></div>
+    <div class="field"><span class="label">Stations</span><div class="seg" id="set" role="radiogroup"></div></div>
+    <div class="field"><label class="label" for="thr">Windy means</label><select id="thr"></select></div>
+  </div>
+</section>
+
+<h2 id="hour-title">&nbsp;</h2>
+
+<section class="tiles six" aria-label="Scores for this hour">
+  <div class="tile"><span class="v" id="t-mae">–</span><span class="k">typical speed error</span></div>
+  <div class="tile"><span class="v" id="t-bias">–</span><span class="k">on average</span></div>
+  <div class="tile"><span class="v" id="t-near">–</span><span class="k">of stations within ±2 m/s</span></div>
+  <div class="tile"><span class="v" id="t-dir">–</span><span class="k">typical direction error</span></div>
+  <div class="tile"><span class="v" id="t-gust">–</span><span class="k">typical gust error</span></div>
+  <div class="tile"><span class="v" id="t-windy">–</span><span class="k" id="t-windy-k">windy stations forecast windy</span></div>
+</section>
+
+<section class="wind-main">
+  <div class="wind-map-wrap">
+    <div class="row map-tools">
+      <div class="seg" id="zoom" role="radiogroup" aria-label="Map area"></div>
+      <div class="seg" id="mode" role="radiogroup" aria-label="Map colours"></div>
+      <label class="check"><input type="checkbox" id="arrows" checked> Wind arrows</label>
+    </div>
+    <div class="wind-map">
+      <svg id="map" role="img" aria-label="Stations coloured by forecast error"></svg>
+      <div id="tip" class="tip" hidden></div>
+    </div>
+    <div class="legend" id="err-legend"></div>
+    <div class="legend">
+      <span><i class="arrow-key" style="background:var(--ink)"></i>measured wind</span>
+      <span><i class="arrow-key" style="background:var(--s1)" id="fc-key"></i><span id="fc-key-label">forecast wind</span></span>
+      <span class="muted">Arrows point where the wind blows to; longer = stronger.</span>
+    </div>
+  </div>
+  <aside class="card station" id="station">
+    <h2 id="st-name">Pick a station</h2>
+    <p class="muted" id="st-note">Tap or click a station on the map to see measured and forecast wind there over the last two weeks.</p>
+    <div class="chart" id="st-chart-wrap" hidden><canvas id="ch-station"></canvas></div>
+    <table id="st-table"></table>
+  </aside>
+</section>
+
+<section class="card">
+  <h2>Hour by hour</h2>
+  <p class="muted">Typical wind speed error at the chosen stations for every hour of the last two weeks, for the
+    forecast age chosen above. Lower is better. Click a point to see that hour on the map.</p>
+  <div class="chart"><canvas id="ch-hours"></canvas></div>
+</section>
+
+<section class="card">
+  <div class="head">
+    <h2>Does an older forecast do worse?</h2>
+    <div class="seg" id="period" role="radiogroup"></div>
+  </div>
+  <p class="muted" id="period-note"></p>
+  <div class="chart short"><canvas id="ch-lead"></canvas></div>
+  <div class="table-scroll"><table id="lead-table"></table></div>
+</section>
+
+<section class="card">
+  <h2>Where is the forecast most off?</h2>
+  <p class="muted" id="rank-note">Stations with the biggest typical speed error over the last two weeks.</p>
+  <div class="table-scroll"><table id="rank-table"></table></div>
+</section>
+
+<section class="card about">
+  <h2>How to read this</h2>
+  <ul>
+    <li><b>Typical speed error</b> is the mean absolute difference between the forecast wind speed and the
+      10-minute mean wind measured at the full hour. <b>On average</b> shows whether the forecast was
+      too strong (+) or too weak (−).</li>
+    <li><b>Direction error</b> only counts stations where both measured and forecast wind were at least 3 m/s;
+      light winds turn freely and their direction means little.</li>
+    <li><b>Gusts</b>: forecast gust compared with the strongest gust measured during the hour.</li>
+    <li><b>FMI official forecast</b> is the meteorologists' edited forecast, the one shown on ilmatieteenlaitos.fi
+      and in its boating weather. It is updated about every hour. <b>MEPS</b> is the raw weather model, run every 3 hours.
+      Both are read at the station's location (MEPS from its nearest 2.5 km grid point).</li>
+    <li><b>On the water</b>: stations whose surroundings are mostly sea or lake in the MEPS model (lighthouses,
+      islands, lake stations). A land station near the shore usually measures less wind than on open water.</li>
+    <li>Data: Finnish Meteorological Institute open data, CC BY 4.0. Updated hourly.</li>
+  </ul>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="wind.js"></script>
+</body>
+</html>

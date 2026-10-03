@@ -6,7 +6,7 @@ on:
   workflow_dispatch:        # "Run workflow" button for a manual run
   push:
     branches: [main]
-    paths: ["web/**", "raincheck.py", ".github/workflows/**"]
+    paths: ["web/**", "*.py", ".github/workflows/**"]
 
 permissions:
   contents: write   # push the data branch
