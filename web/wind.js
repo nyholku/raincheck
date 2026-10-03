@@ -20,8 +20,9 @@ const ERR_STOPS = [
   [-4, [150, 16, 32]], [-2.6, [214, 58, 42]], [-1.5, [240, 140, 60]], [-0.7, [178, 206, 92]],
   [0, [72, 168, 84]], [0.7, [96, 186, 160]], [1.5, [82, 160, 214]], [2.6, [52, 104, 196]], [4, [30, 52, 140]],
 ];
-const FIELD_SIGMA_KM = 30;           // how far one station's error spreads
-const FIELD_FULL_KM = 35, FIELD_FADE_KM = 90;  // colour fades out this far from the nearest station
+const FIELD_SIGMA_KM = 30;           // how far one station's value spreads
+const FIELD_FULL_KM = 30, FIELD_FADE_KM = 80;  // colour fades out this far from the station network
+const LINK_KM = 150;                 // neighbouring stations closer than this are linked into the network
 const COMPASS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
 
 let IDX, SUM, C, F;
@@ -79,8 +80,8 @@ async function hourData(t) {
 // ------------------------------------------------------------------ maps
 
 const PANELS = ["obs", "fc", "err"];
-// wind speed (m/s): light lavender (calm) … deep purple (storm)
-const WS_STOPS = [[0, [232, 226, 246]], [4, [198, 184, 234]], [8, [152, 124, 210]], [11, [118, 86, 186]], [14, [88, 52, 158]], [20, [44, 16, 96]]];
+// wind speed (m/s): green (calm) → yellow → orange → red → dark red (storm)
+const WS_STOPS = [[0, [116, 196, 118]], [4, [168, 214, 92]], [7, [236, 224, 78]], [10, [246, 164, 58]], [14, [222, 70, 44]], [20, [140, 20, 40]]];
 const wsRGB = (v) => ramp(WS_STOPS, v);
 const wsColor = (v) => `rgb(${wsRGB(v).join(",")})`;
 
@@ -148,13 +149,34 @@ async function loadSea() {
   FIELD.cells = Int32Array.from(cells);
 }
 
+// Links between neighbouring stations (each to its 3 nearest within LINK_KM), so the colour
+// stays solid along the coast between stations and only fades towards the open sea.
+function links(points) {
+  const max = LINK_KM / C.pixel_km, segs = [], seen = new Set();
+  points.forEach((p, i) => {
+    points.map((q, j) => [Math.hypot(p.x - q.x, p.y - q.y), j]).filter(([d, j]) => j !== i && d <= max)
+      .sort((a, b) => a[0] - b[0]).slice(0, 3).forEach(([, j]) => {
+        const key = i < j ? `${i}-${j}` : `${j}-${i}`;
+        if (!seen.has(key)) { seen.add(key); segs.push([p, points[j]]); }
+      });
+  });
+  return segs;
+}
+
+function distToSegment(x, y, a, b) {
+  const dx = b.x - a.x, dy = b.y - a.y, l2 = dx * dx + dy * dy;
+  const t = l2 ? Math.max(0, Math.min(1, ((x - a.x) * dx + (y - a.y) * dy) / l2)) : 0;
+  return Math.hypot(x - a.x - t * dx, y - a.y - t * dy);
+}
+
 // Blend station values over the sea: Gaussian-weighted mean of nearby stations, fading out
-// with distance to the nearest one. points: [{x, y, v}] in grid pixels.
+// with distance from the station network. points: [{x, y, v}] in grid pixels.
 function blend(points) {
   const W = C.width, km = C.pixel_km;
   const values = new Float32Array(W * C.height).fill(NaN), alpha = new Float32Array(W * C.height);
   if (!FIELD.cells || !points.length) return { values, alpha };
   const s2 = 2 * (FIELD_SIGMA_KM / km) ** 2, full = FIELD_FULL_KM / km, fade = FIELD_FADE_KM / km;
+  const segs = links(points);
   for (const c of FIELD.cells) {
     const cx = (c % W) + 0.5, cy = Math.floor(c / W) + 0.5;
     let sw = 0, sv = 0, near = Infinity;
@@ -165,6 +187,7 @@ function blend(points) {
       if (d2 < near) near = d2;
     }
     near = Math.sqrt(near);
+    for (const [a, b] of segs) if (near > full) near = Math.min(near, distToSegment(cx, cy, a, b));
     if (near > fade) continue;
     values[c] = sv / sw;
     alpha[c] = near <= full ? 1 : 1 - (near - full) / (fade - full);
