@@ -4,3 +4,4 @@ out/
 _site/
 __pycache__/
 rainverify.py
+.DS_Store
