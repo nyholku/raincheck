@@ -1,0 +1,1210 @@
+{
+"100683": {
+"name": "Porvoo Kilpilahti satama",
+"lat": 60.304,
+"lon": 25.549,
+"px": 230.1,
+"py": 522.9,
+"water": false
+},
+"100907": {
+"name": "Jomala Maarianhamina lentoasema",
+"lat": 60.127,
+"lon": 19.9,
+"px": 95.9,
+"py": 522.7,
+"water": false
+},
+"100908": {
+"name": "Parainen Utö",
+"lat": 59.779,
+"lon": 21.375,
+"px": 129.5,
+"py": 542.6,
+"water": true
+},
+"100909": {
+"name": "Lemland Nyhamn",
+"lat": 59.959,
+"lon": 19.954,
+"px": 96.4,
+"py": 530.8,
+"water": true
+},
+"100917": {
+"name": "Jomala Jomalaby",
+"lat": 60.178,
+"lon": 19.987,
+"px": 98.2,
+"py": 520.5,
+"water": false
+},
+"100919": {
+"name": "Hammarland Märket",
+"lat": 60.301,
+"lon": 19.131,
+"px": 78.7,
+"py": 512.4,
+"water": true
+},
+"100924": {
+"name": "Parainen Fagerholm",
+"lat": 60.112,
+"lon": 21.698,
+"px": 138.5,
+"py": 527.4,
+"water": true
+},
+"100928": {
+"name": "Kumlinge kirkonkylä",
+"lat": 60.258,
+"lon": 20.747,
+"px": 116.6,
+"py": 518.5,
+"water": false
+},
+"100932": {
+"name": "Hanko Russarö",
+"lat": 59.774,
+"lon": 22.949,
+"px": 167.2,
+"py": 545.6,
+"water": true
+},
+"100945": {
+"name": "Kemiönsaari Vänö",
+"lat": 59.869,
+"lon": 22.193,
+"px": 149.4,
+"py": 539.9,
+"water": true
+},
+"100946": {
+"name": "Hanko Tulliniemi",
+"lat": 59.809,
+"lon": 22.912,
+"px": 166.4,
+"py": 543.9,
+"water": true
+},
+"100947": {
+"name": "Turku Rajakari",
+"lat": 60.378,
+"lon": 22.096,
+"px": 148.8,
+"py": 515.5,
+"water": true
+},
+"100949": {
+"name": "Turku Artukainen",
+"lat": 60.454,
+"lon": 22.179,
+"px": 151.1,
+"py": 512.0,
+"water": false
+},
+"100967": {
+"name": "Salo Kiikala lentokenttä",
+"lat": 60.464,
+"lon": 23.65,
+"px": 185.6,
+"py": 513.7,
+"water": false
+},
+"100968": {
+"name": "Vantaa Helsinki-Vantaan lentoasema",
+"lat": 60.329,
+"lon": 24.973,
+"px": 216.5,
+"py": 521.4,
+"water": false
+},
+"100969": {
+"name": "Inkoo Bågaskär",
+"lat": 59.931,
+"lon": 24.014,
+"px": 193.1,
+"py": 539.5,
+"water": true
+},
+"100971": {
+"name": "Helsinki Kaisaniemi",
+"lat": 60.175,
+"lon": 24.945,
+"px": 215.7,
+"py": 528.7,
+"water": false
+},
+"100976": {
+"name": "Vihti Maasoja",
+"lat": 60.419,
+"lon": 24.399,
+"px": 203.2,
+"py": 516.6,
+"water": false
+},
+"100996": {
+"name": "Helsinki Harmaja",
+"lat": 60.105,
+"lon": 24.975,
+"px": 216.3,
+"py": 532.1,
+"water": true
+},
+"100997": {
+"name": "Kirkkonummi Mäkiluoto",
+"lat": 59.92,
+"lon": 24.35,
+"px": 201.1,
+"py": 540.4,
+"water": true
+},
+"101004": {
+"name": "Helsinki Kumpula",
+"lat": 60.203,
+"lon": 24.961,
+"px": 216.1,
+"py": 527.4,
+"water": false
+},
+"101022": {
+"name": "Porvoo Kalbådagrund",
+"lat": 59.986,
+"lon": 25.599,
+"px": 231.0,
+"py": 538.1,
+"water": true
+},
+"101023": {
+"name": "Porvoo Emäsalo",
+"lat": 60.204,
+"lon": 25.625,
+"px": 231.8,
+"py": 527.8,
+"water": true
+},
+"101028": {
+"name": "Porvoo Harabacka",
+"lat": 60.392,
+"lon": 25.607,
+"px": 231.6,
+"py": 518.8,
+"water": false
+},
+"101030": {
+"name": "Kotka Rankki",
+"lat": 60.375,
+"lon": 26.959,
+"px": 263.4,
+"py": 519.9,
+"water": true
+},
+"101039": {
+"name": "Loviisa Orrengrund",
+"lat": 60.275,
+"lon": 26.448,
+"px": 251.3,
+"py": 524.7,
+"water": true
+},
+"101042": {
+"name": "Kotka Haapasaari",
+"lat": 60.287,
+"lon": 27.185,
+"px": 268.8,
+"py": 524.1,
+"water": true
+},
+"101044": {
+"name": "Pori lentoasema",
+"lat": 61.46,
+"lon": 21.808,
+"px": 146.2,
+"py": 463.5,
+"water": false
+},
+"101059": {
+"name": "Kustavi Isokari",
+"lat": 60.722,
+"lon": 21.027,
+"px": 125.2,
+"py": 497.0,
+"water": true
+},
+"101061": {
+"name": "Rauma Kylmäpihlaja",
+"lat": 61.145,
+"lon": 21.303,
+"px": 133.4,
+"py": 477.5,
+"water": true
+},
+"101065": {
+"name": "Turku lentoasema",
+"lat": 60.516,
+"lon": 22.279,
+"px": 153.6,
+"py": 509.2,
+"water": false
+},
+"101103": {
+"name": "Kokemäki Tulkkila",
+"lat": 61.253,
+"lon": 22.346,
+"px": 157.7,
+"py": 474.3,
+"water": false
+},
+"101104": {
+"name": "Jokioinen Ilmala",
+"lat": 60.814,
+"lon": 23.498,
+"px": 183.0,
+"py": 496.8,
+"water": false
+},
+"101118": {
+"name": "Pirkkala Tampere-Pirkkala lentoasema",
+"lat": 61.419,
+"lon": 23.623,
+"px": 187.4,
+"py": 468.2,
+"water": false
+},
+"101150": {
+"name": "Hämeenlinna Katinen",
+"lat": 60.999,
+"lon": 24.492,
+"px": 206.4,
+"py": 489.1,
+"water": false
+},
+"101191": {
+"name": "Kouvola Utti lentoasema",
+"lat": 60.898,
+"lon": 26.949,
+"px": 263.2,
+"py": 495.0,
+"water": false
+},
+"101231": {
+"name": "Virolahti Koivuniemi",
+"lat": 60.527,
+"lon": 27.673,
+"px": 280.2,
+"py": 512.6,
+"water": false
+},
+"101237": {
+"name": "Lappeenranta lentoasema",
+"lat": 61.04,
+"lon": 28.129,
+"px": 290.5,
+"py": 488.0,
+"water": false
+},
+"101246": {
+"name": "Lappeenranta Konnunsuo",
+"lat": 61.039,
+"lon": 28.564,
+"px": 300.5,
+"py": 487.8,
+"water": false
+},
+"101252": {
+"name": "Lappeenranta Hiekkapakka",
+"lat": 61.198,
+"lon": 28.473,
+"px": 298.3,
+"py": 480.3,
+"water": true
+},
+"101254": {
+"name": "Parikkala Koitsanlahti",
+"lat": 61.445,
+"lon": 29.461,
+"px": 320.5,
+"py": 467.9,
+"water": false
+},
+"101256": {
+"name": "Kaskinen Sälgrund",
+"lat": 62.334,
+"lon": 21.191,
+"px": 135.9,
+"py": 420.7,
+"water": true
+},
+"101267": {
+"name": "Pori Tahkoluoto satama",
+"lat": 61.63,
+"lon": 21.376,
+"px": 137.0,
+"py": 454.6,
+"water": true
+},
+"101289": {
+"name": "Kauhajoki Kuja-Kokko",
+"lat": 62.413,
+"lon": 22.184,
+"px": 158.1,
+"py": 418.8,
+"water": false
+},
+"101291": {
+"name": "Kankaanpää Niinisalo lentokenttä",
+"lat": 61.839,
+"lon": 22.464,
+"px": 162.3,
+"py": 446.6,
+"water": false
+},
+"101310": {
+"name": "Virrat Äijänneva",
+"lat": 62.328,
+"lon": 23.542,
+"px": 187.8,
+"py": 424.8,
+"water": false
+},
+"101311": {
+"name": "Tampere Siilinkari",
+"lat": 61.518,
+"lon": 23.754,
+"px": 190.6,
+"py": 463.6,
+"water": true
+},
+"101315": {
+"name": "Jämsä Halli lentoasema",
+"lat": 61.856,
+"lon": 24.805,
+"px": 215.0,
+"py": 448.5,
+"water": false
+},
+"101362": {
+"name": "Luhanka Judinsalo",
+"lat": 61.704,
+"lon": 25.505,
+"px": 230.6,
+"py": 456.2,
+"water": true
+},
+"101418": {
+"name": "Juva Partala",
+"lat": 61.892,
+"lon": 27.885,
+"px": 284.3,
+"py": 447.5,
+"water": false
+},
+"101421": {
+"name": "Varkaus Kosulanniemi",
+"lat": 62.322,
+"lon": 27.908,
+"px": 284.5,
+"py": 427.0,
+"water": false
+},
+"101430": {
+"name": "Savonlinna lentoasema",
+"lat": 61.946,
+"lon": 28.932,
+"px": 307.7,
+"py": 444.4,
+"water": false
+},
+"101436": {
+"name": "Rantasalmi Rukkasluoto",
+"lat": 62.063,
+"lon": 28.566,
+"px": 299.4,
+"py": 439.0,
+"water": true
+},
+"101462": {
+"name": "Vaasa lentoasema",
+"lat": 63.059,
+"lon": 21.755,
+"px": 151.1,
+"py": 387.3,
+"water": false
+},
+"101464": {
+"name": "Mustasaari Valassaaret",
+"lat": 63.435,
+"lon": 21.069,
+"px": 138.0,
+"py": 368.1,
+"water": true
+},
+"101479": {
+"name": "Korsnäs Bredskäret",
+"lat": 62.935,
+"lon": 21.185,
+"px": 138.3,
+"py": 392.1,
+"water": true
+},
+"101481": {
+"name": "Maalahti Strömmingsbådan",
+"lat": 62.978,
+"lon": 20.74,
+"px": 128.9,
+"py": 389.2,
+"water": true
+},
+"101485": {
+"name": "Vaasa Klemettilä",
+"lat": 63.099,
+"lon": 21.639,
+"px": 148.8,
+"py": 385.2,
+"water": false
+},
+"101486": {
+"name": "Seinäjoki Pelmaa",
+"lat": 62.938,
+"lon": 22.489,
+"px": 166.6,
+"py": 394.3,
+"water": false
+},
+"101503": {
+"name": "Kauhava lentokenttä",
+"lat": 63.12,
+"lon": 23.044,
+"px": 179.1,
+"py": 386.4,
+"water": false
+},
+"101528": {
+"name": "Halsua Purola",
+"lat": 63.446,
+"lon": 24.444,
+"px": 209.9,
+"py": 372.4,
+"water": false
+},
+"101536": {
+"name": "Multia Karhila",
+"lat": 62.51,
+"lon": 24.808,
+"px": 216.1,
+"py": 417.3,
+"water": false
+},
+"101537": {
+"name": "Viitasaari Haapaniemi",
+"lat": 63.082,
+"lon": 25.859,
+"px": 239.8,
+"py": 390.6,
+"water": false
+},
+"101570": {
+"name": "Siilinjärvi Kuopio lentoasema",
+"lat": 62.998,
+"lon": 27.808,
+"px": 281.9,
+"py": 394.7,
+"water": false
+},
+"101572": {
+"name": "Kuopio Maaninka",
+"lat": 63.143,
+"lon": 27.313,
+"px": 271.2,
+"py": 387.9,
+"water": false
+},
+"101580": {
+"name": "Kuopio Ritoniemi",
+"lat": 62.799,
+"lon": 27.905,
+"px": 284.1,
+"py": 404.2,
+"water": true
+},
+"101586": {
+"name": "Kuopio Savilahti",
+"lat": 62.893,
+"lon": 27.633,
+"px": 278.2,
+"py": 399.8,
+"water": false
+},
+"101603": {
+"name": "Rautavaara Ylä-Luosta",
+"lat": 63.378,
+"lon": 28.662,
+"px": 299.9,
+"py": 376.3,
+"water": false
+},
+"101608": {
+"name": "Liperi Joensuu lentoasema",
+"lat": 62.657,
+"lon": 29.636,
+"px": 322.2,
+"py": 409.9,
+"water": false
+},
+"101609": {
+"name": "Juuka Niemelä",
+"lat": 63.232,
+"lon": 29.234,
+"px": 312.4,
+"py": 382.9,
+"water": false
+},
+"101628": {
+"name": "Liperi Tuiskavanluoto",
+"lat": 62.546,
+"lon": 29.668,
+"px": 323.1,
+"py": 415.2,
+"water": true
+},
+"101636": {
+"name": "Lieksa Lampela",
+"lat": 63.321,
+"lon": 30.046,
+"px": 329.6,
+"py": 377.9,
+"water": false
+},
+"101651": {
+"name": "Ilomantsi Mekrijärvi",
+"lat": 62.769,
+"lon": 30.975,
+"px": 351.1,
+"py": 403.1,
+"water": false
+},
+"101660": {
+"name": "Pietarsaari Kallan",
+"lat": 63.751,
+"lon": 22.523,
+"px": 170.0,
+"py": 355.6,
+"water": true
+},
+"101661": {
+"name": "Kokkola Tankar",
+"lat": 63.951,
+"lon": 22.845,
+"px": 177.4,
+"py": 346.6,
+"water": true
+},
+"101662": {
+"name": "Kruunupyy Kokkola-Pietarsaari lentoasema",
+"lat": 63.727,
+"lon": 23.144,
+"px": 183.0,
+"py": 357.6,
+"water": false
+},
+"101673": {
+"name": "Kalajoki Ulkokalla",
+"lat": 64.331,
+"lon": 23.446,
+"px": 191.0,
+"py": 329.2,
+"water": true
+},
+"101675": {
+"name": "Kokkola Santahaka",
+"lat": 63.839,
+"lon": 23.097,
+"px": 182.3,
+"py": 352.2,
+"water": false
+},
+"101689": {
+"name": "Toholampi Laitala",
+"lat": 63.821,
+"lon": 24.163,
+"px": 204.7,
+"py": 354.3,
+"water": false
+},
+"101690": {
+"name": "Ylivieska lentokenttä",
+"lat": 64.05,
+"lon": 24.725,
+"px": 216.9,
+"py": 343.8,
+"water": false
+},
+"101705": {
+"name": "Pyhäjärvi Ojakylä",
+"lat": 63.736,
+"lon": 25.706,
+"px": 237.1,
+"py": 359.4,
+"water": false
+},
+"101725": {
+"name": "Kajaani lentoasema",
+"lat": 64.283,
+"lon": 27.671,
+"px": 278.3,
+"py": 333.5,
+"water": false
+},
+"101726": {
+"name": "Vieremä Kaarakkala",
+"lat": 63.841,
+"lon": 27.221,
+"px": 269.1,
+"py": 354.6,
+"water": false
+},
+"101756": {
+"name": "Sotkamo Kuolaniemi",
+"lat": 64.112,
+"lon": 28.336,
+"px": 292.2,
+"py": 341.4,
+"water": false
+},
+"101773": {
+"name": "Kuhmo Kalliojoki",
+"lat": 64.298,
+"lon": 30.171,
+"px": 330.0,
+"py": 331.2,
+"water": false
+},
+"101775": {
+"name": "Raahe Nahkiainen",
+"lat": 64.612,
+"lon": 23.897,
+"px": 200.9,
+"py": 316.3,
+"water": true
+},
+"101783": {
+"name": "Kemi I majakka",
+"lat": 65.385,
+"lon": 24.096,
+"px": 206.7,
+"py": 279.7,
+"water": true
+},
+"101784": {
+"name": "Hailuoto Marjaniemi",
+"lat": 65.04,
+"lon": 24.561,
+"px": 215.3,
+"py": 296.5,
+"water": true
+},
+"101785": {
+"name": "Raahe Lapaluoto satama",
+"lat": 64.666,
+"lon": 24.407,
+"px": 211.5,
+"py": 314.2,
+"water": true
+},
+"101786": {
+"name": "Oulu lentoasema",
+"lat": 64.935,
+"lon": 25.339,
+"px": 230.8,
+"py": 302.0,
+"water": false
+},
+"101787": {
+"name": "Siikajoki Ruukki",
+"lat": 64.684,
+"lon": 25.089,
+"px": 225.4,
+"py": 313.8,
+"water": false
+},
+"101794": {
+"name": "Oulu Vihreäsaari satama",
+"lat": 65.006,
+"lon": 25.393,
+"px": 232.0,
+"py": 298.7,
+"water": true
+},
+"101800": {
+"name": "Vaala Pelso",
+"lat": 64.501,
+"lon": 26.424,
+"px": 252.6,
+"py": 323.1,
+"water": false
+},
+"101805": {
+"name": "Pudasjärvi lentokenttä",
+"lat": 65.4,
+"lon": 26.963,
+"px": 263.7,
+"py": 280.3,
+"water": false
+},
+"101826": {
+"name": "Suomussalmi Pesiö",
+"lat": 64.931,
+"lon": 28.747,
+"px": 299.7,
+"py": 302.2,
+"water": false
+},
+"101831": {
+"name": "Puolanka Paljakka",
+"lat": 64.664,
+"lon": 28.057,
+"px": 286.0,
+"py": 315.2,
+"water": false
+},
+"101840": {
+"name": "Kemi Kemi-Tornio lentoasema",
+"lat": 65.789,
+"lon": 24.583,
+"px": 217.1,
+"py": 260.8,
+"water": false
+},
+"101846": {
+"name": "Kemi Ajos",
+"lat": 65.673,
+"lon": 24.515,
+"px": 215.6,
+"py": 266.3,
+"water": true
+},
+"101873": {
+"name": "Ranua lentokenttä",
+"lat": 65.977,
+"lon": 26.368,
+"px": 252.1,
+"py": 252.7,
+"water": false
+},
+"101885": {
+"name": "Taivalkoski kirkonkylä",
+"lat": 65.575,
+"lon": 28.218,
+"px": 288.4,
+"py": 271.7,
+"water": false
+},
+"101886": {
+"name": "Kuusamo lentoasema",
+"lat": 65.993,
+"lon": 29.227,
+"px": 307.6,
+"py": 251.2,
+"water": false
+},
+"101897": {
+"name": "Kuusamo Rukatunturi",
+"lat": 66.166,
+"lon": 29.152,
+"px": 305.9,
+"py": 243.0,
+"water": false
+},
+"101899": {
+"name": "Kuusamo Juuma",
+"lat": 66.32,
+"lon": 29.4,
+"px": 310.4,
+"py": 235.5,
+"water": false
+},
+"101908": {
+"name": "Ylitornio Meltosjärvi",
+"lat": 66.53,
+"lon": 24.65,
+"px": 219.8,
+"py": 225.5,
+"water": false
+},
+"101914": {
+"name": "Pello kirkonkylä",
+"lat": 66.773,
+"lon": 23.963,
+"px": 207.3,
+"py": 213.4,
+"water": false
+},
+"101932": {
+"name": "Sodankylä Tähtelä",
+"lat": 67.367,
+"lon": 26.629,
+"px": 257.6,
+"py": 186.4,
+"water": false
+},
+"101933": {
+"name": "Rovaniemi Apukka",
+"lat": 66.579,
+"lon": 26.011,
+"px": 245.6,
+"py": 223.9,
+"water": false
+},
+"101939": {
+"name": "Sodankylä Luosto",
+"lat": 67.139,
+"lon": 26.897,
+"px": 262.5,
+"py": 197.3,
+"water": false
+},
+"101950": {
+"name": "Kemijärvi lentokenttä",
+"lat": 66.716,
+"lon": 27.159,
+"px": 267.4,
+"py": 217.5,
+"water": false
+},
+"101959": {
+"name": "Salla kirkonkylä",
+"lat": 66.817,
+"lon": 28.688,
+"px": 296.1,
+"py": 212.2,
+"water": false
+},
+"101966": {
+"name": "Salla Naruska",
+"lat": 67.162,
+"lon": 29.178,
+"px": 304.7,
+"py": 195.5,
+"water": false
+},
+"101976": {
+"name": "Enontekiö lentoasema",
+"lat": 68.361,
+"lon": 23.428,
+"px": 201.6,
+"py": 137.1,
+"water": false
+},
+"101982": {
+"name": "Muonio Laukukero",
+"lat": 68.063,
+"lon": 24.033,
+"px": 211.5,
+"py": 151.9,
+"water": false
+},
+"101983": {
+"name": "Muonio Sammaltunturi",
+"lat": 67.973,
+"lon": 24.116,
+"px": 212.8,
+"py": 156.3,
+"water": false
+},
+"101985": {
+"name": "Kittilä Matorova",
+"lat": 68.0,
+"lon": 24.24,
+"px": 215.1,
+"py": 155.1,
+"water": false
+},
+"101986": {
+"name": "Kittilä lentoasema",
+"lat": 67.692,
+"lon": 24.855,
+"px": 225.6,
+"py": 170.2,
+"water": false
+},
+"101987": {
+"name": "Kittilä Kenttärova",
+"lat": 67.987,
+"lon": 24.243,
+"px": 215.1,
+"py": 155.7,
+"water": false
+},
+"101994": {
+"name": "Kittilä Pokka",
+"lat": 68.17,
+"lon": 25.783,
+"px": 242.8,
+"py": 147.9,
+"water": false
+},
+"102000": {
+"name": "Sodankylä Lokka",
+"lat": 67.821,
+"lon": 27.746,
+"px": 277.8,
+"py": 164.7,
+"water": false
+},
+"102001": {
+"name": "Sodankylä Vuotso",
+"lat": 68.084,
+"lon": 27.185,
+"px": 267.7,
+"py": 152.2,
+"water": false
+},
+"102006": {
+"name": "Inari Saariselkä Kaunispää",
+"lat": 68.434,
+"lon": 27.445,
+"px": 272.2,
+"py": 135.5,
+"water": false
+},
+"102016": {
+"name": "Enontekiö Kilpisjärvi kyläkeskus",
+"lat": 69.039,
+"lon": 20.814,
+"px": 159.0,
+"py": 101.3,
+"water": false
+},
+"102017": {
+"name": "Enontekiö Kilpisjärvi Saana",
+"lat": 69.043,
+"lon": 20.851,
+"px": 159.6,
+"py": 101.2,
+"water": false
+},
+"102019": {
+"name": "Enontekiö Näkkälä",
+"lat": 68.603,
+"lon": 23.576,
+"px": 204.8,
+"py": 125.8,
+"water": false
+},
+"102026": {
+"name": "Inari Angeli Lintupuoliselkä",
+"lat": 68.903,
+"lon": 25.736,
+"px": 242.7,
+"py": 112.9,
+"water": false
+},
+"102033": {
+"name": "Inari Ivalo lentoasema",
+"lat": 68.613,
+"lon": 27.419,
+"px": 271.7,
+"py": 126.9,
+"water": false
+},
+"102035": {
+"name": "Utsjoki Kevo",
+"lat": 69.756,
+"lon": 27.007,
+"px": 264.5,
+"py": 72.4,
+"water": false
+},
+"102036": {
+"name": "Utsjoki Nuorgam",
+"lat": 70.082,
+"lon": 27.896,
+"px": 279.0,
+"py": 56.7,
+"water": false
+},
+"102047": {
+"name": "Inari Kaamanen",
+"lat": 69.141,
+"lon": 27.266,
+"px": 268.9,
+"py": 101.7,
+"water": false
+},
+"102052": {
+"name": "Inari Nellim",
+"lat": 68.849,
+"lon": 28.299,
+"px": 286.8,
+"py": 115.4,
+"water": false
+},
+"102055": {
+"name": "Inari Kirakkajärvi",
+"lat": 69.582,
+"lon": 28.894,
+"px": 295.9,
+"py": 80.2,
+"water": false
+},
+"103794": {
+"name": "Mäntsälä Hirvihaara",
+"lat": 60.628,
+"lon": 25.193,
+"px": 222.1,
+"py": 507.3,
+"water": false
+},
+"105392": {
+"name": "Sipoo Itätoukki",
+"lat": 60.101,
+"lon": 25.194,
+"px": 221.5,
+"py": 532.4,
+"water": true
+},
+"106435": {
+"name": "Muonio Oustajärvi",
+"lat": 67.948,
+"lon": 23.708,
+"px": 205.4,
+"py": 157.1,
+"water": false
+},
+"107029": {
+"name": "Pyhtää lentokenttä",
+"lat": 60.486,
+"lon": 26.591,
+"px": 254.8,
+"py": 514.6,
+"water": false
+},
+"107113": {
+"name": "Sotkamo Tuhkakylä",
+"lat": 63.996,
+"lon": 28.06,
+"px": 286.6,
+"py": 347.1,
+"water": false
+},
+"107201": {
+"name": "Tervola Loue",
+"lat": 66.154,
+"lon": 24.99,
+"px": 225.6,
+"py": 243.7,
+"water": false
+},
+"107383": {
+"name": "Maarianhamina Lotsberget",
+"lat": 60.088,
+"lon": 19.935,
+"px": 96.6,
+"py": 524.6,
+"water": true
+},
+"107565": {
+"name": "Savukoski Tulppio",
+"lat": 67.769,
+"lon": 29.211,
+"px": 304.3,
+"py": 166.5,
+"water": false
+},
+"108020": {
+"name": "Inkoo Jakobramsjö",
+"lat": 59.995,
+"lon": 23.996,
+"px": 192.8,
+"py": 536.4,
+"water": true
+},
+"129963": {
+"name": "Inari Seitalaassa",
+"lat": 69.049,
+"lon": 27.757,
+"px": 277.3,
+"py": 106.1,
+"water": true
+},
+"137188": {
+"name": "Ilmajoki Seinäjoki lentoasema",
+"lat": 62.686,
+"lon": 22.843,
+"px": 173.4,
+"py": 406.8,
+"water": false
+},
+"137190": {
+"name": "Rovaniemi lentoasema AWOS",
+"lat": 66.573,
+"lon": 25.848,
+"px": 242.6,
+"py": 224.1,
+"water": false
+},
+"137208": {
+"name": "Jyväskylä lentoasema AWOS",
+"lat": 62.393,
+"lon": 25.689,
+"px": 235.4,
+"py": 423.4,
+"water": false
+},
+"150168": {
+"name": "Puumala kirkonkylä",
+"lat": 61.522,
+"lon": 28.185,
+"px": 291.4,
+"py": 465.0,
+"water": false
+},
+"151029": {
+"name": "Maarianhamina Länsisatama",
+"lat": 60.091,
+"lon": 19.929,
+"px": 96.4,
+"py": 524.5,
+"water": true
+},
+"151048": {
+"name": "Lumparland Långnäs satama",
+"lat": 60.116,
+"lon": 20.298,
+"px": 105.3,
+"py": 524.2,
+"water": false
+},
+"778135": {
+"name": "Kittilä Lompolonvuoma",
+"lat": 67.997,
+"lon": 24.21,
+"px": 214.5,
+"py": 155.2,
+"water": false
+},
+"852678": {
+"name": "Espoo Nuuksio",
+"lat": 60.291,
+"lon": 24.568,
+"px": 206.9,
+"py": 522.9,
+"water": false
+},
+"855522": {
+"name": "Mikkeli Lentoasema AWOS",
+"lat": 61.688,
+"lon": 27.207,
+"px": 269.1,
+"py": 457.3,
+"water": false
+},
+"874863": {
+"name": "Espoo Tapiola",
+"lat": 60.178,
+"lon": 24.787,
+"px": 211.9,
+"py": 528.4,
+"water": false
+}
+}
